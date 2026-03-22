@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #06b6d4;
+  --accent-hover: #0891b2;
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-sidebar: #13161f;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: #2d3149;
+}
+
+.light {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-sidebar: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.sidebar { background-color: var(--bg-sidebar); }
+.card { background-color: var(--bg-secondary); border-color: var(--border); }
+.accent { color: var(--accent); }
+.accent-bg { background-color: var(--accent); }
+.btn-accent {
+  background-color: var(--accent);
+  color: white;
+  transition: background-color 0.15s;
+}
+.btn-accent:hover { background-color: var(--accent-hover); }
+.nav-active { background-color: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

@@ -90,6 +90,7 @@ npm run dev
 | Variable | Description |
 |----------|-------------|
 | NEXT_PUBLIC_SUPABASE_URL | URL de ton projet Supabase |
+
 | NEXT_PUBLIC_SUPABASE_ANON_KEY | Clé publique Supabase |
 | SUPABASE_SERVICE_ROLE_KEY | Clé service Supabase (privée) |
 | GOOGLE_CLIENT_ID | Client ID Google Cloud |

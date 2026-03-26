@@ -1,36 +1,17 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const error = searchParams.get('error')
 
-  if (code) {
-    const response = NextResponse.redirect(`${origin}${next}`)
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return response
-    }
+  if (error) {
+    return NextResponse.redirect(`${origin}/auth/login?error=${error}`)
   }
 
-  return NextResponse.redirect(`${origin}/auth/login?error=auth_error`)
+  if (code) {
+    return NextResponse.redirect(`${origin}/auth/exchange?code=${code}`)
+  }
+
+  return NextResponse.redirect(`${origin}/auth/login?error=no_code`)
 }

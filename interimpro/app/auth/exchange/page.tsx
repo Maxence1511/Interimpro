@@ -1,10 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ExchangePage() {
-  const router = useRouter()
   const [status, setStatus] = useState('Connexion en cours...')
 
   useEffect(() => {
@@ -12,19 +10,18 @@ export default function ExchangePage() {
     const code = new URLSearchParams(window.location.search).get('code')
 
     if (!code) {
-      router.push('/auth/login?error=no_code')
+      window.location.href = '/auth/login?error=no_code'
       return
     }
 
-    supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
       if (error) {
         console.error('Exchange error:', error)
-        setStatus('Erreur, redirection...')
-        setTimeout(() => router.push('/auth/login?error=auth_error'), 1000)
+        window.location.href = '/auth/login?error=auth_error'
       } else {
-        setStatus('Connecte ! Redirection...')
-        router.push('/dashboard')
-        router.refresh()
+        setStatus('Connecte !')
+        // Hard redirect pour que les cookies soient bien lus
+        window.location.href = '/dashboard'
       }
     })
   }, [])

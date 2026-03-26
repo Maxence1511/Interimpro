@@ -1,196 +1,100 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter, usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Briefcase, Building2, Calendar, BarChart3, Settings, RefreshCw, User, LogOut, Bell } from 'lucide-react'
-import { COULEURS_THEME } from '@/lib/types'
-import { getAlertes } from '@/lib/utils'
-import { Mission } from '@/lib/types'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-  { href: '/dashboard/missions', icon: Briefcase, label: 'Missions' },
-  { href: '/dashboard/etablissements', icon: Building2, label: 'Établissements' },
-  { href: '/dashboard/calendrier', icon: Calendar, label: 'Calendrier' },
-  { href: '/dashboard/analyses', icon: BarChart3, label: 'Analyses' },
-]
-
-const navBottom = [
-  { href: '/dashboard/import', icon: RefreshCw, label: 'Import Google' },
-  { href: '/dashboard/parametres', icon: Settings, label: 'Paramètres' },
+const nav = [
+  { href: '/dashboard', label: 'Tableau de bord', icon: '📊', exact: true },
+  { href: '/dashboard/missions', label: 'Missions', icon: '📋' },
+  { href: '/dashboard/etablissements', label: 'Établissements', icon: '🏥' },
+  { href: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
+  { href: '/dashboard/analyses', label: 'Analyses', icon: '📈' },
+  { href: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient()
-  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
-  const [firstName, setFirstName] = useState('')
-  const [theme, setTheme] = useState('teal')
-  const [darkMode, setDarkMode] = useState(true)
-  const [alertes, setAlertes] = useState<any[]>([])
-  const [showNotifs, setShowNotifs] = useState(false)
-  const [time, setTime] = useState(new Date())
+  const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
-    loadUserData()
-    const timer = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(timer)
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) { router.push('/auth/login'); return }
+      setUser(data.user)
+    })
   }, [])
 
-  async function loadUserData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+  const logout = async () => { await supabase.auth.signOut(); router.push('/') }
 
-    const [{ data: profile }, { data: prefs }, { data: missions }] = await Promise.all([
-      supabase.from('user_profiles').select('first_name').eq('id', user.id).single(),
-      supabase.from('user_preferences').select('*').eq('id', user.id).single(),
-      supabase.from('missions').select('*').eq('user_id', user.id),
-    ])
+  const isActive = (item: typeof nav[0]) =>
+    item.exact ? pathname === item.href : pathname.startsWith(item.href)
 
-    if (profile?.first_name) setFirstName(profile.first_name)
-    if (prefs) {
-      setTheme(prefs.couleur_theme)
-      setDarkMode(prefs.mode_sombre)
-      applyTheme(prefs.couleur_theme, prefs.mode_sombre)
-    }
-    if (missions) setAlertes(getAlertes(missions))
-  }
-
-  function applyTheme(couleur: string, dark: boolean) {
-    const root = document.documentElement
-    const accent = COULEURS_THEME[couleur] || COULEURS_THEME.teal
-    root.style.setProperty('--accent', accent)
-    root.style.setProperty('--accent-hover', accent + 'cc')
-    if (!dark) root.classList.add('light')
-    else root.classList.remove('light')
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-  }
-
-  const urgentes = alertes.filter(a => a.type === 'urgent').length
-  const warnings = alertes.filter(a => a.type === 'warning').length
-  const badgeCount = urgentes + warnings
+  const sidebarW = collapsed ? 64 : 240
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-      {/* Sidebar */}
-      <aside className="sidebar w-64 flex flex-col flex-shrink-0 h-full" style={{ borderRight: '1px solid var(--border)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+      {/* SIDEBAR */}
+      <aside style={{ width: sidebarW, minWidth: sidebarW, background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', transition: 'width 0.2s', overflow: 'hidden' }}>
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-3 px-5 py-5 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 2c4.42 0 8 3.58 8 8s-3.58 8-8 8-8-3.58-8-8 3.58-8 8-8zm-1 4v3H8v2h3v3h2v-3h3v-2h-3V8h-2z"/>
+        <div style={{ padding: '20px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '36px', height: '36px', minWidth: 36, borderRadius: '10px', background: 'var(--accent-light)', border: '1px solid rgba(232,123,249,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+              <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
+              <circle cx="20" cy="10" r="2"/>
             </svg>
           </div>
-          <div>
-            <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>InterimPro</div>
-            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Intérimaire simplifiée</div>
-          </div>
-        </Link>
+          {!collapsed && <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>InterimPro</span>}
+        </div>
 
-        {/* Nav principale */}
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {navItems.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href
+        {/* Nav links */}
+        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
+          {nav.map(item => {
+            const active = isActive(item)
             return (
-              <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'nav-active' : 'hover:opacity-70'}`}
-                style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                <Icon size={18} />
-                {label}
+              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', textDecoration: 'none', background: active ? 'var(--accent)' : 'transparent', color: active ? 'white' : 'var(--text-secondary)', fontWeight: active ? 600 : 400, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', transition: 'all 0.15s' }}>
+                <span style={{ fontSize: '16px', minWidth: 20, textAlign: 'center' }}>{item.icon}</span>
+                {!collapsed && item.label}
               </Link>
             )
           })}
         </nav>
 
-        {/* Nav bas */}
-        <div className="px-3 py-2 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
-          {navBottom.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'nav-active' : 'hover:opacity-70'}`}
-                style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                <Icon size={18} />
-                {label}
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Profil utilisateur */}
-        <div className="px-4 py-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-          {firstName && (
-            <p className="text-center text-base font-semibold" style={{ color: 'var(--accent)' }}>
-              Bonjour, {firstName} 👋
-            </p>
+        {/* User + logout */}
+        <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
+          {!collapsed && user && (
+            <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'white', border: '1px solid var(--border)', marginBottom: '6px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.user_metadata?.full_name || user.email?.split('@')[0]}</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+            </div>
           )}
-          <Link href="/dashboard/mon-compte" className="flex items-center gap-3 px-3 py-2 rounded-xl hover:opacity-70 transition-opacity">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'var(--accent)' }}>
-              {firstName ? firstName[0].toUpperCase() : '?'}
-            </div>
-            <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Mon Compte</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Voir le profil</p>
-            </div>
-          </Link>
-          <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-1.5 text-xs w-full rounded-lg hover:opacity-70 transition-opacity" style={{ color: '#ef4444' }}>
-            <LogOut size={14} />
-            Déconnexion
+          <button onClick={logout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '14px' }}>
+            <span style={{ fontSize: '16px', minWidth: 20, textAlign: 'center' }}>🚪</span>
+            {!collapsed && 'Déconnexion'}
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* MAIN */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Topbar */}
-        <header className="flex items-center justify-between px-6 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-          <div />
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                {time.toLocaleTimeString('fr-FR')}
-              </div>
-              <div className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
-                {time.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </div>
-            </div>
-            <div className="relative">
-              <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 rounded-xl hover:opacity-70 transition-opacity" style={{ border: '1px solid var(--border)' }}>
-                <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
-                {badgeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center" style={{ background: urgentes > 0 ? '#ef4444' : '#f59e0b' }}>
-                    {badgeCount}
-                  </span>
-                )}
-              </button>
-              {showNotifs && (
-                <div className="absolute right-0 top-12 w-80 rounded-xl shadow-xl z-50 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                  <div className="p-3 font-medium text-sm" style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-                    Alertes ({alertes.length})
-                  </div>
-                  <div className="max-h-80 overflow-y-auto">
-                    {alertes.length === 0 ? (
-                      <p className="p-4 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>Aucune alerte</p>
-                    ) : alertes.map(a => (
-                      <div key={a.id} className="p-3 text-xs" style={{ borderBottom: '1px solid var(--border)', color: a.type === 'urgent' ? '#ef4444' : a.type === 'warning' ? '#f59e0b' : 'var(--text-secondary)' }}>
-                        {a.message}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        <div style={{ height: '56px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: '16px', background: 'white', position: 'sticky', top: 0, zIndex: 10 }}>
+          <button onClick={() => setCollapsed(!collapsed)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '18px', padding: '4px', borderRadius: '6px', lineHeight: 1 }}>☰</button>
+          <div style={{ flex: 1 }} />
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+          {user?.user_metadata?.avatar_url && (
+            <img src={user.user_metadata.avatar_url} style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid var(--accent)' }} alt="" />
+          )}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

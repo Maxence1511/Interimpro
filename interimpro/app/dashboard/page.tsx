@@ -1,259 +1,169 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Mission, Etablissement, UserPreferences } from '@/lib/types'
-import { formatEuros, formatHeures, formatDate, getRevenusParMois, getHeuresParMois, getAlertes, isMissionTerminee, shouldAutoArchive } from '@/lib/utils'
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Calendar, Clock, Euro } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
-export default function DashboardPage() {
-  const supabase = createClient()
-  const router = useRouter()
-  const [missions, setMissions] = useState<Mission[]>([])
-  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
-  const [prefs, setPrefs] = useState<UserPreferences | null>(null)
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [visibleProchaines, setVisibleProchaines] = useState(5)
-  const [visiblePassees, setVisiblePassees] = useState(5)
-
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
-
-  useEffect(() => { loadData() }, [])
-
-  async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const [{ data: m }, { data: e }, { data: p }] = await Promise.all([
-      supabase.from('missions').select('*, etablissement:etablissements(*)').eq('user_id', user.id),
-      supabase.from('etablissements').select('*').eq('user_id', user.id).eq('archived', false),
-      supabase.from('user_preferences').select('*').eq('id', user.id).single(),
-    ])
-
-    let updatedMissions = m || []
-
-    // Auto-passage en passée
-    for (const mission of updatedMissions) {
-      if (mission.statut === 'a_venir' && isMissionTerminee(mission)) {
-        await supabase.from('missions').update({ statut: 'passee' }).eq('id', mission.id)
-        mission.statut = 'passee'
-      }
-      if (shouldAutoArchive(mission)) {
-        await supabase.from('missions').update({ statut: 'archive', date_archive: new Date().toISOString() }).eq('id', mission.id)
-        mission.statut = 'archive'
-      }
-    }
-
-    setMissions(updatedMissions)
-    setEtablissements(e || [])
-    setPrefs(p)
-  }
-
-  async function togglePointage(mission: Mission, field: 'contrat_signe' | 'fiche_paie_recue' | 'salaire_recu') {
-    const newVal = !mission[field]
-    const dateField = field === 'contrat_signe' ? 'date_contrat_signe' : field === 'fiche_paie_recue' ? 'date_fiche_paie_recue' : 'date_salaire_recu'
-    const updates: any = { [field]: newVal, [dateField]: newVal ? new Date().toISOString() : null }
-
-    const updated = { ...mission, [field]: newVal }
-    if (shouldAutoArchive(updated)) {
-      updates.statut = 'archive'
-      updates.date_archive = new Date().toISOString()
-      toast.success('Mission archivée automatiquement ✓')
-    }
-
-    await supabase.from('missions').update(updates).eq('id', mission.id)
-    setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, ...updates } : m))
-  }
-
-  const revenusMois = getRevenusParMois(missions, year, month)
-  const heuresMois = getHeuresParMois(missions, year, month)
-  const prevMonth = month === 0 ? 11 : month - 1
-  const prevYear = month === 0 ? year - 1 : year
-  const revenusPrev = getRevenusParMois(missions, prevYear, prevMonth)
-  const heuresPrev = getHeuresParMois(missions, prevYear, prevMonth)
-  const diffRevenus = revenusMois - revenusPrev
-  const diffHeures = heuresMois - heuresPrev
-
-  const objectif = prefs?.objectif_heures_mensuel || 151.67
-  const progressPct = Math.min(100, Math.round((heuresMois / objectif) * 100))
-
-  const prochaines = missions.filter(m => m.statut === 'a_venir').sort((a, b) => new Date(a.date_debut!).getTime() - new Date(b.date_debut!).getTime())
-  const passees = missions.filter(m => m.statut === 'passee').sort((a, b) => new Date(b.date_fin!).getTime() - new Date(a.date_fin!).getTime())
-
-  const moisNom = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-
-  const navMois = (dir: number) => {
-    setCurrentDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + dir); return d })
-  }
-
+function StatCard({ label, value, sub, color, icon }: any) {
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>Tableau de bord</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Vue d'ensemble de vos missions et statistiques</p>
+    <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', borderTop: `3px solid ${color}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+        <span style={{ fontSize: '22px' }}>{icon}</span>
       </div>
-
-      {/* Navigation mois */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => navMois(-1)} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ border: '1px solid var(--border)' }}>
-          <ChevronLeft size={16} />
-        </button>
-        <span className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{moisNom}</span>
-        <button onClick={() => navMois(1)} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ border: '1px solid var(--border)' }}>
-          <ChevronRight size={16} />
-        </button>
-        <button onClick={() => setCurrentDate(new Date())} className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--accent)', color: 'white' }}>
-          Aujourd'hui
-        </button>
-      </div>
-
-      {/* Métriques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Revenus */}
-        <div className="card rounded-xl p-5 border" style={{ borderLeft: '3px solid #10b981' }}>
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#10b981' }}>Revenus</span>
-            <Euro size={16} style={{ color: '#10b981' }} />
-          </div>
-          <div className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{formatEuros(revenusMois)}</div>
-          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Ce mois-ci</div>
-          {revenusPrev !== 0 && (
-            <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${diffRevenus >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {diffRevenus >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-              {diffRevenus >= 0 ? '+' : ''}{formatEuros(diffRevenus)} vs mois précédent
-            </div>
-          )}
-        </div>
-
-        {/* Heures */}
-        <div className="card rounded-xl p-5 border" style={{ borderLeft: '3px solid #6366f1' }}>
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#6366f1' }}>Heures</span>
-            <Clock size={16} style={{ color: '#6366f1' }} />
-          </div>
-          <div className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{formatHeures(heuresMois)}</div>
-          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Ce mois-ci</div>
-          {heuresPrev !== 0 && (
-            <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${diffHeures >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {diffHeures >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-              {diffHeures >= 0 ? '+' : ''}{formatHeures(Math.abs(diffHeures))} vs mois précédent
-            </div>
-          )}
-        </div>
-
-        {/* Objectif */}
-        <div className="card rounded-xl p-5 border" style={{ borderLeft: '3px solid #8b5cf6' }}>
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#8b5cf6' }}>Objectif</span>
-            <Calendar size={16} style={{ color: '#8b5cf6' }} />
-          </div>
-          <div className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{progressPct}%</div>
-          <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>{formatHeures(heuresMois)} / {formatHeures(objectif)}</div>
-          <div className="h-2 rounded-full" style={{ background: 'var(--border)' }}>
-            <div className="h-2 rounded-full transition-all" style={{ width: `${progressPct}%`, background: '#8b5cf6' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Sections missions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Prochaines missions */}
-        <div className="card rounded-xl border p-5" style={{ minHeight: 320 }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-medium" style={{ color: 'var(--text-primary)' }}>Prochaines missions</h2>
-            <button onClick={() => router.push('/dashboard/missions?tab=a_venir')} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>Voir toutes →</button>
-          </div>
-          {prochaines.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-center">
-              <div className="text-3xl mb-2">📅</div>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Aucune mission à venir</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {prochaines.slice(0, visibleProchaines).map(m => (
-                <MissionCard key={m.id} mission={m} etablissements={etablissements} onToggle={togglePointage} />
-              ))}
-              {prochaines.length > visibleProchaines && (
-                <button onClick={() => setVisibleProchaines(v => v + 5)} className="w-full text-xs py-2 rounded-lg hover:opacity-70 transition-opacity" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  Voir 5 de plus ({prochaines.length - visibleProchaines} restantes)
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Dernières missions */}
-        <div className="card rounded-xl border p-5" style={{ minHeight: 320 }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-medium" style={{ color: 'var(--text-primary)' }}>Dernières missions réalisées</h2>
-            <button onClick={() => router.push('/dashboard/missions?tab=passee')} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>Voir toutes →</button>
-          </div>
-          {passees.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-center">
-              <div className="text-3xl mb-2">✅</div>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Aucune mission réalisée</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {passees.slice(0, visiblePassees).map(m => (
-                <MissionCard key={m.id} mission={m} etablissements={etablissements} onToggle={togglePointage} showPointage />
-              ))}
-              {passees.length > visiblePassees && (
-                <button onClick={() => setVisiblePassees(v => v + 5)} className="w-full text-xs py-2 rounded-lg hover:opacity-70 transition-opacity" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  Voir 5 de plus ({passees.length - visiblePassees} restantes)
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>{value}</div>
+      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sub}</div>
     </div>
   )
 }
 
-function MissionCard({ mission, etablissements, onToggle, showPointage = false }: {
-  mission: Mission
-  etablissements: Etablissement[]
-  onToggle: (m: Mission, f: any) => void
-  showPointage?: boolean
-}) {
-  const etab = etablissements.find(e => e.id === mission.etablissement_id)
+export default function DashboardPage() {
+  const [missions, setMissions] = useState<any[]>([])
+  const [etablissements, setEtablissements] = useState<any[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      const [m, e] = await Promise.all([
+        supabase.from('missions').select('*').order('date_debut', { ascending: true }),
+        supabase.from('etablissements').select('*').eq('archived', false)
+      ])
+      setMissions(m.data || []); setEtablissements(e.data || []); setLoading(false)
+    }
+    load()
+  }, [])
+
+  const now = new Date()
+  const moisDebut = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const moisFin = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString()
+  const moisMissions = missions.filter(m => m.date_debut >= moisDebut && m.date_debut <= moisFin)
+  const heures = moisMissions.reduce((a, m) => a + (m.heures || 0), 0)
+  const revenus = moisMissions.reduce((a, m) => a + (m.salaire_estime || 0), 0)
+  const objectif = 151.67
+  const progress = Math.min((heures / objectif) * 100, 100)
+  const avenir = missions.filter(m => m.statut === 'a_venir').slice(0, 5)
+  const getEtab = (id: string) => etablissements.find(e => e.id === id)
+  const fmt = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const fmtEur = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+
+  // Alertes
+  const alertes: any[] = []
+  const demain = new Date(); demain.setDate(demain.getDate() + 1)
+  missions.forEach(m => {
+    if (m.statut === 'a_venir' && !m.contrat_signe && new Date(m.date_debut) <= demain)
+      alertes.push({ type: 'warning', msg: `Contrat non signé — ${m.titre}` })
+    if (m.statut === 'passee' && !m.fiche_paie_recue) {
+      const le6 = new Date(new Date(m.date_debut).getFullYear(), new Date(m.date_debut).getMonth() + 1, 6)
+      if (new Date() > le6) alertes.push({ type: 'error', msg: `Fiche de paie manquante — ${m.titre}` })
+    }
+  })
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>Chargement...</div>
+
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}>
-          <Calendar size={14} style={{ color: 'var(--accent)' }} />
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          Bonjour {user?.user_metadata?.full_name?.split(' ')[0] || ''} 👋
+        </h1>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+          {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })} — voici un résumé de votre activité
+        </p>
+      </div>
+
+      {/* Alertes */}
+      {alertes.length > 0 && (
+        <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {alertes.slice(0, 3).map((a, i) => (
+            <div key={i} style={{ padding: '12px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px', background: a.type === 'error' ? '#fef2f2' : '#fffbeb', border: `1px solid ${a.type === 'error' ? '#fca5a5' : '#fde68a'}` }}>
+              <span>{a.type === 'error' ? '🔴' : '⚠️'}</span>
+              <span style={{ fontSize: '13px', color: a.type === 'error' ? '#dc2626' : '#92400e' }}>{a.msg}</span>
+            </div>
+          ))}
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{mission.titre}</p>
-          <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-            {etab?.nom || 'Établissement'} • {mission.date_debut ? new Date(mission.date_debut).toLocaleDateString('fr-FR') : ''}
-          </p>
+      )}
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+        <StatCard label="Revenus du mois" value={fmtEur(revenus)} sub={`${moisMissions.length} missions`} color="#e87bf9" icon="💰" />
+        <StatCard label="Heures travaillées" value={`${heures.toFixed(1)}h`} sub={`Objectif : ${objectif}h`} color="#818cf8" icon="⏱️" />
+        <StatCard label="Missions à venir" value={avenir.length.toString()} sub={`${missions.filter(m => m.statut === 'passee').length} passées`} color="#34d399" icon="📋" />
+        <StatCard label="Établissements" value={etablissements.length.toString()} sub="actifs" color="#fb923c" icon="🏥" />
+      </div>
+
+      {/* Barre de progression */}
+      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Objectif mensuel</span>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent)' }}>{progress.toFixed(0)}%</span>
+        </div>
+        <div style={{ height: '8px', background: 'var(--bg-primary)', borderRadius: '100px', overflow: 'hidden', marginBottom: '8px' }}>
+          <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #e87bf9, #a855f7)', borderRadius: '100px', transition: 'width 0.5s' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)' }}>
+          <span>{heures.toFixed(1)}h effectuées</span>
+          <span>{objectif}h objectif</span>
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {mission.salaire_estime && (
-          <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: '#10b98120', color: '#10b981' }}>
-            {formatEuros(mission.salaire_estime)}
-          </span>
-        )}
-        {showPointage && (
-          <div className="flex gap-1">
-            {(['contrat_signe', 'fiche_paie_recue', 'salaire_recu'] as const).map((field, i) => {
-              const icons = ['📄', '💰', '✅']
-              const labels = ['Contrat', 'Fiche paie', 'Salaire']
-              return (
-                <button key={field} onClick={() => onToggle(mission, field)} title={labels[i]}
-                  className={`w-6 h-6 rounded text-xs transition-opacity hover:opacity-70 ${mission[field] ? 'opacity-100' : 'opacity-30'}`}>
-                  {icons[i]}
-                </button>
-              )
-            })}
+
+      {/* Grille 2 colonnes */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        {/* Prochaines missions */}
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Prochaines missions</h3>
+            <Link href="/dashboard/missions" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>Voir tout →</Link>
           </div>
-        )}
+          {avenir.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>📋</div>
+              Aucune mission à venir
+              <div style={{ marginTop: '10px' }}>
+                <Link href="/dashboard/missions" style={{ color: 'var(--accent)', fontSize: '13px', textDecoration: 'none', fontWeight: 500 }}>+ Ajouter une mission</Link>
+              </div>
+            </div>
+          ) : avenir.map(m => {
+            const etab = getEtab(m.etablissement_id)
+            return (
+              <div key={m.id} style={{ padding: '12px', borderRadius: '8px', background: 'var(--bg-primary)', border: '1px solid var(--border)', marginBottom: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>{m.titre}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '2px' }}>🏥 {etab?.nom || '—'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>📅 {fmt(m.date_debut)} · {m.heures}h</div>
+                {!m.contrat_signe && <span style={{ fontSize: '11px', color: '#f59e0b', display: 'block', marginTop: '4px' }}>⚠️ Contrat non signé</span>}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Suivi administratif */}
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Suivi administratif</h3>
+          {[
+            { label: 'Contrats signés', count: missions.filter(m => m.contrat_signe).length, total: missions.length, color: '#e87bf9' },
+            { label: 'Fiches de paie', count: missions.filter(m => m.fiche_paie_recue).length, total: missions.filter(m => m.statut === 'passee').length, color: '#818cf8' },
+            { label: 'Salaires reçus', count: missions.filter(m => m.salaire_recu).length, total: missions.filter(m => m.statut === 'passee').length, color: '#34d399' },
+          ].map((item, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{item.label}</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.count}/{item.total}</span>
+              </div>
+              <div style={{ height: '6px', background: 'var(--bg-primary)', borderRadius: '100px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: item.total > 0 ? `${(item.count / item.total) * 100}%` : '0%', background: item.color, borderRadius: '100px', transition: 'width 0.5s' }} />
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(232,123,249,0.08)', border: '1px solid rgba(232,123,249,0.2)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total estimé (tous mois)</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)' }}>
+              {fmtEur(missions.reduce((a, m) => a + (m.salaire_estime || 0), 0))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

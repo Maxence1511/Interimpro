@@ -1,122 +1,183 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-const STATUTS: Record<string, any> = {
-  a_venir: { label: 'A venir', color: '#e87bf9', bg: 'rgba(232,123,249,0.1)' },
-  passee: { label: 'Passee', color: '#818cf8', bg: 'rgba(129,140,248,0.1)' },
-  archive: { label: 'Archivee', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' }
+type Mission = {
+  id: string; titre: string; etablissement_id: string; date_debut: string; date_fin: string
+  statut: string; heures: number; salaire_estime: number; salaire_majore_manuel: number | null
+  contrat_signe: boolean; fiche_paie_recue: boolean; salaire_recu: boolean
+  majoration_nuit: boolean; majoration_dimanche: boolean; majoration_ferie: boolean
+  taux_majoration: number; notes: string; google_calendar_event_id: string | null
+}
+type Etab = { id: string; nom: string; taux_horaire: number }
+
+const STATUT: Record<string, { label: string; color: string; bg: string }> = {
+  a_venir: { label: 'À venir', color: '#7c3aed', bg: '#f5f3ff' },
+  passee: { label: 'Passée', color: '#0891b2', bg: '#ecfeff' },
+  archive: { label: 'Archivée', color: '#6b7280', bg: '#f9fafb' },
+}
+
+const inp = {
+  width: '100%', padding: '9px 12px', borderRadius: 8,
+  border: '1px solid var(--border)', background: 'var(--bg-primary)',
+  color: 'var(--text-primary)', fontSize: 14, outline: 'none',
+  boxSizing: 'border-box' as const,
 }
 
 export default function MissionsPage() {
-  const [missions, setMissions] = useState<any[]>([])
-  const [etablissements, setEtablissements] = useState<any[]>([])
+  const [missions, setMissions] = useState<Mission[]>([])
+  const [etabs, setEtabs] = useState<Etab[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
+  const [editing, setEditing] = useState<Mission | null>(null)
   const [filtre, setFiltre] = useState('tous')
+  const [search, setSearch] = useState('')
   const supabase = createClient()
-  const empty = { titre: '', etablissement_id: '', date_debut: '', heures: 8, statut: 'a_venir', contrat_signe: false, fiche_paie_recue: false, salaire_recu: false, majoration_nuit: false, majoration_dimanche: false, majoration_ferie: false, notes: '', source: 'manual' }
-  const [form, setForm] = useState<any>(empty)
 
-  const load = async () => {
+  const emptyForm = {
+    titre: '', etablissement_id: '', date_debut: '', date_fin: '', heures: 8,
+    statut: 'a_venir', contrat_signe: false, fiche_paie_recue: false, salaire_recu: false,
+    majoration_nuit: false, majoration_dimanche: false, majoration_ferie: false,
+    taux_majoration: 0, salaire_majore_manuel: '', notes: '',
+  }
+  const [form, setForm] = useState<any>(emptyForm)
+
+  const load = useCallback(async () => {
     const [m, e] = await Promise.all([
       supabase.from('missions').select('*').order('date_debut', { ascending: false }),
-      supabase.from('etablissements').select('*').eq('archived', false).order('nom')
+      supabase.from('etablissements').select('*').eq('archived', false).order('nom'),
     ])
-    setMissions(m.data || []); setEtablissements(e.data || []); setLoading(false)
-  }
-  useEffect(() => { load() }, [])
+    setMissions((m.data || []) as Mission[])
+    setEtabs((e.data || []) as Etab[])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   const calcSalaire = (f: any) => {
-    const etab = etablissements.find(e => e.id === f.etablissement_id)
+    const etab = etabs.find(e => e.id === f.etablissement_id)
     const taux = etab?.taux_horaire || 14
-    let base = (f.heures || 0) * taux
-    if (f.majoration_nuit) base *= 1.25
-    if (f.majoration_dimanche) base *= 1.25
-    if (f.majoration_ferie) base *= 1.50
-    return Math.round(base * 100) / 100
+    const base = (Number(f.heures) || 0) * taux
+    let maj = 0
+    if (f.majoration_nuit) maj += 0.25
+    if (f.majoration_dimanche) maj += 0.25
+    if (f.majoration_ferie) maj += 0.50
+    return Math.round(base * (1 + maj) * 100) / 100
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const data = { ...form, salaire_estime: calcSalaire(form), heures: Number(form.heures) }
-    if (editing) await supabase.from('missions').update(data).eq('id', editing.id)
-    else await supabase.from('missions').insert(data)
-    setShowForm(false); setEditing(null); setForm(empty); load()
+    const salaire_estime = calcSalaire(form)
+    const payload = {
+      ...form,
+      heures: Number(form.heures),
+      taux_majoration: Number(form.taux_majoration),
+      salaire_estime,
+      salaire_majore_manuel: form.salaire_majore_manuel === '' ? null : Number(form.salaire_majore_manuel),
+    }
+    if (editing) await supabase.from('missions').update(payload).eq('id', editing.id)
+    else await supabase.from('missions').insert(payload)
+    setShowForm(false); setEditing(null); setForm(emptyForm); load()
   }
 
-  const toggle = async (m: any, field: string) => {
-    const update: any = { [field]: !m[field] }
-    if (field === 'contrat_signe') update.date_contrat_signe = !m[field] ? new Date().toISOString() : null
-    if (field === 'fiche_paie_recue') update.date_fiche_paie_recue = !m[field] ? new Date().toISOString() : null
-    if (field === 'salaire_recu') update.date_salaire_recu = !m[field] ? new Date().toISOString() : null
-    await supabase.from('missions').update(update).eq('id', m.id); load()
+  const toggle = async (m: Mission, field: keyof Mission) => {
+    await supabase.from('missions').update({ [field]: !(m[field] as boolean) }).eq('id', m.id)
+    load()
   }
 
-  const del = async (id: string) => { if (!confirm('Supprimer ?')) return; await supabase.from('missions').delete().eq('id', id); load() }
-  const getEtab = (id: string) => etablissements.find(e => e.id === id)
-  const fmt = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
-  const fmtEur = (n: number) => n?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) || 'EUR 0'
-  const inp = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }
-  const filtered = missions.filter(m => filtre === 'tous' || m.statut === filtre)
+  const del = async (id: string) => {
+    if (!confirm('Supprimer cette mission ?')) return
+    await supabase.from('missions').delete().eq('id', id)
+    load()
+  }
+
+  const openEdit = (m: Mission) => {
+    setEditing(m)
+    setForm({ ...m, date_debut: m.date_debut?.slice(0, 16) || '', date_fin: m.date_fin?.slice(0, 16) || '', salaire_majore_manuel: m.salaire_majore_manuel ?? '' })
+    setShowForm(true)
+  }
+
+  const getEtab = (id: string) => etabs.find(e => e.id === id)
+  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+  const fmtEur = (n: number) => n?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) || '—'
+
+  const filtered = missions
+    .filter(m => filtre === 'tous' || m.statut === filtre)
+    .filter(m => !search || m.titre.toLowerCase().includes(search.toLowerCase()) || (getEtab(m.etablissement_id)?.nom || '').toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '2px' }}>Missions</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{missions.length} missions au total</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Missions</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{missions.length} mission(s) au total</p>
         </div>
-        <button onClick={() => { setEditing(null); setForm(empty); setShowForm(true) }} style={{ padding: '10px 18px', borderRadius: '10px', background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
+        <button onClick={() => { setEditing(null); setForm(emptyForm); setShowForm(true) }}
+          style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 8px rgba(217,70,239,.3)' }}>
           + Nouvelle mission
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      {/* Filtres */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
+          style={{ ...inp, width: 200 }} />
         {['tous', 'a_venir', 'passee', 'archive'].map(f => (
-          <button key={f} onClick={() => setFiltre(f)} style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: filtre === f ? 'var(--accent)' : 'white', color: filtre === f ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: filtre === f ? 600 : 400 }}>
-            {f === 'tous' ? 'Toutes' : STATUTS[f]?.label}
+          <button key={f} onClick={() => setFiltre(f)}
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: filtre === f ? 'var(--accent)' : 'white', color: filtre === f ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, fontWeight: filtre === f ? 700 : 400 }}>
+            {f === 'tous' ? 'Toutes' : STATUT[f]?.label}
           </button>
         ))}
       </div>
 
-      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Chargement...</div>
-      : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
-          <div style={{ fontSize: '36px', marginBottom: '12px' }}>📋</div>
-          <button onClick={() => setShowForm(true)} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}>+ Ajouter une mission</button>
+      {/* Liste */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Chargement...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+          <p style={{ marginBottom: 12 }}>Aucune mission trouvée</p>
+          <button onClick={() => setShowForm(true)} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>+ Ajouter une mission</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(m => {
             const etab = getEtab(m.etablissement_id)
-            const s = STATUTS[m.statut] || STATUTS.archive
+            const s = STATUT[m.statut] || STATUT.archive
+            const salaireFinal = m.salaire_majore_manuel ?? m.salaire_estime
             return (
-              <div key={m.id} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '4px', height: '44px', borderRadius: '4px', background: s.color, flexShrink: 0 }} />
+              <div key={m.id} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 4, height: 48, borderRadius: 4, background: s.color, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{m.titre}</span>
-                    <span style={{ padding: '2px 8px', borderRadius: '100px', fontSize: '11px', fontWeight: 600, background: s.bg, color: s.color }}>{s.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{m.titre}</span>
+                    <span style={{ padding: '2px 8px', borderRadius: 100, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
+                    {m.google_calendar_event_id && <span title="Importé GCal" style={{ fontSize: 12 }}>📅</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-secondary)' }}>
                     {etab && <span>🏥 {etab.nom}</span>}
-                    {m.date_debut && <span>📅 {fmt(m.date_debut)}</span>}
+                    {m.date_debut && <span>🗓 {fmtDate(m.date_debut)}</span>}
                     <span>⏱ {m.heures}h</span>
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>💰 {fmtEur(m.salaire_estime)}</span>
+                    <span style={{ color: '#059669', fontWeight: 700 }}>💰 {fmtEur(salaireFinal)}</span>
+                    {m.majoration_nuit && <span style={{ color: '#7c3aed' }}>🌙</span>}
+                    {m.majoration_dimanche && <span style={{ color: '#d97706' }}>☀️</span>}
+                    {m.majoration_ferie && <span style={{ color: '#dc2626' }}>🎉</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                  {[['contrat_signe','📝'],['fiche_paie_recue','🧾'],['salaire_recu','💸']].map(([f,ico]) => (
-                    <button key={f} onClick={() => toggle(m, f)} style={{ padding: '5px 7px', borderRadius: '6px', border: '1px solid var(--border)', background: (m as any)[f] ? 'rgba(16,185,129,0.1)' : 'var(--bg-primary)', cursor: 'pointer', fontSize: '13px', color: (m as any)[f] ? '#16a34a' : 'var(--text-secondary)' }}>
-                      {ico}{(m as any)[f] ? '✓' : '○'}
+                {/* Checkboxes admin */}
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {([['contrat_signe', '📝', 'Contrat'], ['fiche_paie_recue', '🧾', 'Fiche'], ['salaire_recu', '💸', 'Salaire']] as [keyof Mission, string, string][]).map(([field, ico, label]) => (
+                    <button key={String(field)} onClick={() => toggle(m, field)} title={label}
+                      style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: m[field] ? '#f0fdf4' : 'var(--bg-primary)', cursor: 'pointer', fontSize: 13, color: m[field] ? '#059669' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      {ico} {m[field] ? '✓' : '○'}
                     </button>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onClick={() => { setEditing(m); setForm({...empty,...m,date_debut:m.date_debut?.slice(0,16)||''}); setShowForm(true) }} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>✏️</button>
-                  <button onClick={() => del(m.id)} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: '13px' }}>🗑️</button>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => openEdit(m)} style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: 13 }}>✏️</button>
+                  <button onClick={() => del(m.id)} style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', cursor: 'pointer', fontSize: 13, color: '#dc2626' }}>🗑️</button>
                 </div>
               </div>
             )
@@ -124,32 +185,96 @@ export default function MissionsPage() {
         </div>
       )}
 
+      {/* Modal Formulaire */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
-              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>{editing ? 'Modifier' : 'Nouvelle mission'}</h2>
-              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
+          <div style={{ background: 'white', borderRadius: 16, padding: 28, width: '100%', maxWidth: 560, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,.15)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{editing ? 'Modifier la mission' : 'Nouvelle mission'}</h2>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-secondary)' }}>✕</button>
             </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
-              <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>Titre *</label><input required value={form.titre} onChange={e => setForm({...form,titre:e.target.value})} placeholder="Medecine interne" style={inp} /></div>
-              <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>Etablissement *</label><select required value={form.etablissement_id} onChange={e => setForm({...form,etablissement_id:e.target.value})} style={inp}><option value="">Selectionner...</option>{etablissements.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}</select></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>Debut *</label><input required type="datetime-local" value={form.date_debut} onChange={e => setForm({...form,date_debut:e.target.value})} style={inp} /></div>
-                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>Heures *</label><input required type="number" step="0.5" min="0" value={form.heures} onChange={e => setForm({...form,heures:Number(e.target.value)})} style={inp} /></div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Titre / Service *</label>
+                <input required value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} placeholder="Médecine interne, Urgences..." style={inp} />
               </div>
-              <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>Statut</label><select value={form.statut} onChange={e => setForm({...form,statut:e.target.value})} style={inp}><option value="a_venir">A venir</option><option value="passee">Passee</option><option value="archive">Archivee</option></select></div>
-              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                {[['majoration_nuit','Nuit +25%'],['majoration_dimanche','Dimanche +25%'],['majoration_ferie','Ferie +50%']].map(([f,l]) => (
-                  <label key={f} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}><input type="checkbox" checked={form[f]} onChange={e => setForm({...form,[f]:e.target.checked})} />{l}</label>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Établissement *</label>
+                <select required value={form.etablissement_id} onChange={e => setForm({ ...form, etablissement_id: e.target.value })} style={inp}>
+                  <option value="">Sélectionner...</option>
+                  {etabs.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Début *</label>
+                  <input required type="datetime-local" value={form.date_debut} onChange={e => setForm({ ...form, date_debut: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Fin</label>
+                  <input type="datetime-local" value={form.date_fin} onChange={e => setForm({ ...form, date_fin: e.target.value })} style={inp} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Heures *</label>
+                  <input required type="number" step="0.5" min="0" value={form.heures} onChange={e => setForm({ ...form, heures: e.target.value })} style={inp} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Statut</label>
+                  <select value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })} style={inp}>
+                    <option value="a_venir">À venir</option>
+                    <option value="passee">Passée</option>
+                    <option value="archive">Archivée</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Majorations */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Majorations</label>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  {[['majoration_nuit', '🌙 Nuit (+25%)'], ['majoration_dimanche', '☀️ Dimanche (+25%)'], ['majoration_ferie', '🎉 Férié (+50%)']] .map(([field, label]) => (
+                    <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                      <input type="checkbox" checked={form[field]} onChange={e => setForm({ ...form, [field]: e.target.checked })} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Salaire majoré (manuel, optionnel)</label>
+                <input type="number" step="0.01" value={form.salaire_majore_manuel} onChange={e => setForm({ ...form, salaire_majore_manuel: e.target.value })} placeholder="Laissez vide pour calcul automatique" style={inp} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Notes</label>
+                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+              </div>
+
+              {/* Résumé salaire */}
+              <div style={{ padding: '12px 14px', borderRadius: 9, background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>💰 Salaire estimé automatiquement : </span>
+                <strong style={{ color: 'var(--accent)' }}>
+                  {calcSalaire(form).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </strong>
+              </div>
+
+              {/* Checkboxes suivi */}
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                {[['contrat_signe', '📝 Contrat signé'], ['fiche_paie_recue', '🧾 Fiche de paie reçue'], ['salaire_recu', '💸 Salaire reçu']].map(([field, label]) => (
+                  <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={form[field]} onChange={e => setForm({ ...form, [field]: e.target.checked })} />
+                    {label}
+                  </label>
                 ))}
               </div>
-              <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(232,123,249,0.08)', border: '1px solid rgba(232,123,249,0.2)', fontSize: '14px', fontWeight: 700, color: 'var(--accent)' }}>
-                Salaire estime : {calcSalaire(form).toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}
-              </div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px' }}>Annuler</button>
-                <button type="submit" style={{ padding: '10px 18px', borderRadius: '8px', background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{editing ? 'Enregistrer' : 'Creer'}</button>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14 }}>Annuler</button>
+                <button type="submit" style={{ padding: '10px 22px', borderRadius: 9, background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{editing ? 'Enregistrer' : 'Créer'}</button>
               </div>
             </form>
           </div>

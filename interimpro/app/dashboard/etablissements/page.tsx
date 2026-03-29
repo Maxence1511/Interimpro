@@ -25,7 +25,7 @@ export default function EtablissementsPage() {
   }
   useEffect(() => { load() }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault()
     const data = { ...form, taux_horaire: Number(form.taux_horaire), archived: false }
     if (editing) await supabase.from('etablissements').update(data).eq('id', editing.id)

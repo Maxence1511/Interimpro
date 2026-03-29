@@ -1,12 +1,17 @@
-import { createBrowserClient } from '@supabase/ssr'
-
-let client: ReturnType<typeof createBrowserClient> | null = null
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export function createClient() {
-  if (client) return client
-  client = createBrowserClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        storageKey: 'sb-interimpro',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        detectSessionInUrl: false,
+        flowType: 'pkce',
+      }
+    }
   )
-  return client
 }

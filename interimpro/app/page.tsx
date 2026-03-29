@@ -11,20 +11,18 @@ export default function LoginPage() {
 
   const supabase = createClient()
 
-  const handleGoogle = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/exchange',
-        scopes: 'https://www.googleapis.com/auth/calendar',
-      }
-    })
-    if (error) {
-      setMsg({ text: error.message, ok: false })
-      setLoading(false)
+  const handleGoogle = () => {
+  const supabase = createClient()
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin + '/auth/exchange',
+      scopes: 'https://www.googleapis.com/auth/calendar',
     }
-  }
+  }).then(({ error }) => {
+    if (error) setMsg({ text: error.message, ok: false })
+  })
+ }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

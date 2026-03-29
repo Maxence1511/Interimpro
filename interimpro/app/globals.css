@@ -3,21 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #f8fafc;
+  --accent: #d946ef;
+  --accent-light: rgba(217,70,239,0.10);
+  --accent-border: rgba(217,70,239,0.20);
+  --bg-primary: #f9fafb;
   --bg-secondary: #ffffff;
-  --bg-sidebar: #f2f5f7;
-  --text-primary: #0f1729;
-  --text-secondary: #64748b;
-  --border: #e2e8f0;
-  --accent: #e87bf9;
-  --accent-hover: #d946ef;
-  --accent-light: rgba(232,123,249,0.12);
-}
-
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bg-sidebar: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, select, textarea, button { font-family: inherit; }

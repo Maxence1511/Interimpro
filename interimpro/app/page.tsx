@@ -1,119 +1,139 @@
-import Link from 'next/link'
+'use client'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-export default function LandingPage() {
+export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [isRegister, setIsRegister] = useState(false)
+  const [msg, setMsg] = useState({ text: '', ok: true })
+
+  const supabase = createClient()
+
+  const handleGoogle = async () => {
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/auth/exchange',
+        scopes: 'https://www.googleapis.com/auth/calendar',
+      }
+    })
+    if (error) {
+      setMsg({ text: error.message, ok: false })
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setMsg({ text: '', ok: true })
+    try {
+      if (isRegister) {
+        const { error } = await supabase.auth.signUp({ email, password })
+        if (error) throw error
+        setMsg({ text: 'Compte créé ! Vérifiez votre email.', ok: true })
+        setLoading(false)
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        window.location.href = '/dashboard'
+      }
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Erreur de connexion', ok: false })
+      setLoading(false)
+    }
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
-      
-      {/* NAVBAR */}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)', position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(10px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'white' }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14v-4H7l5-8v4h4l-5 8z"/>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 40%, #ede9fe 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+    }}>
+      {/* Bulles décoratives */}
+      <div style={{ position: 'fixed', top: '-80px', right: '-80px', width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(232,123,249,0.12)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', bottom: '-60px', left: '-60px', width: '250px', height: '250px', borderRadius: '50%', background: 'rgba(167,139,250,0.10)', pointerEvents: 'none' }} />
+
+      <div style={{ width: '100%', maxWidth: '400px', position: 'relative', zIndex: 1 }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: 'white', boxShadow: '0 4px 20px rgba(232,123,249,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#e87bf9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+              <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
+              <circle cx="20" cy="10" r="2"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>InterimPro</span>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#581c87', marginBottom: '4px' }}>InterimPro</h1>
+          <p style={{ fontSize: '13px', color: '#a855f7' }}>Gestion de missions d'intérim médical</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <Link href="/auth/login" style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-primary)', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>
-            Se connecter
-          </Link>
-          <Link href="/auth/login" style={{ padding: '8px 20px', borderRadius: '8px', background: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>
-            Commencer gratuitement
-          </Link>
-        </div>
-      </nav>
 
-      {/* HERO */}
-      <section style={{ textAlign: 'center', padding: '100px 40px 80px', maxWidth: '800px', margin: '0 auto' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '100px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.2)', marginBottom: '32px' }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#06b6d4' }}></div>
-          <span style={{ fontSize: '13px', color: '#06b6d4', fontWeight: 500 }}>Conçu pour les infirmiers intérimaires</span>
-        </div>
-        <h1 style={{ fontSize: '56px', fontWeight: 800, lineHeight: 1.1, marginBottom: '24px', letterSpacing: '-1px' }}>
-          Gérez vos missions<br />
-          <span style={{ color: 'var(--accent)' }}>d&apos;intérim médical</span><br />
-          simplement
-        </h1>
-        <p style={{ fontSize: '20px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '48px', maxWidth: '600px', margin: '0 auto 48px' }}>
-          Suivez vos revenus, gérez vos établissements, importez vos missions depuis Google Agenda. Tout en un seul endroit.
-        </p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/auth/login" style={{ padding: '16px 36px', borderRadius: '12px', background: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            Commencer gratuitement
-            <svg viewBox="0 0 20 20" style={{ width: '18px', height: '18px', fill: 'currentColor' }}>
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/>
+        {/* Card */}
+        <div style={{ background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(20px)', border: '1px solid rgba(232,123,249,0.15)', borderRadius: '20px', padding: '28px', boxShadow: '0 8px 40px rgba(147,51,234,0.08)' }}>
+
+          <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#3b0764', marginBottom: '20px', textAlign: 'center' }}>
+            {isRegister ? 'Créer un compte' : 'Connexion'}
+          </h2>
+
+          {/* Bouton Google */}
+          <button onClick={handleGoogle} disabled={loading} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', borderRadius: '12px', background: 'white', border: '1.5px solid #e5e7eb', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '16px', fontSize: '14px', fontWeight: 600, color: '#374151', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', opacity: loading ? 0.7 : 1 }}>
+            <svg style={{ width: '18px', height: '18px', flexShrink: 0 }} viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-          </Link>
-          <Link href="/auth/login" style={{ padding: '16px 36px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--text-primary)', textDecoration: 'none', fontSize: '16px', fontWeight: 500 }}>
-            Se connecter
-          </Link>
-        </div>
-      </section>
+            Continuer avec Google
+          </button>
 
-      {/* STATS */}
-      <section style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '40px', display: 'flex', justifyContent: 'center', gap: '80px', flexWrap: 'wrap' }}>
-        {[
-          { value: '100%', label: 'Gratuit' },
-          { value: 'Auto', label: 'Import Google Agenda' },
-          { value: '24/7', label: 'Accès en ligne' },
-        ].map((stat, i) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '36px', fontWeight: 800, color: 'var(--accent)' }}>{stat.value}</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>{stat.label}</div>
+          {/* Séparateur */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ flex: 1, height: '1px', background: '#f0d9fb' }} />
+            <span style={{ fontSize: '12px', color: '#c084fc' }}>ou</span>
+            <div style={{ flex: 1, height: '1px', background: '#f0d9fb' }} />
           </div>
-        ))}
-      </section>
 
-      {/* FEATURES */}
-      <section style={{ padding: '100px 40px', maxWidth: '1100px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <h2 style={{ fontSize: '40px', fontWeight: 800, marginBottom: '16px' }}>Tout ce dont vous avez besoin</h2>
-          <p style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>Une seule application pour gérer toute votre carrière d&apos;intérimaire</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-          {[
-            { icon: '📅', title: 'Import Google Agenda', desc: 'Importez automatiquement vos missions depuis votre Google Agenda. Matching intelligent avec vos établissements.' },
-            { icon: '💰', title: 'Suivi des revenus', desc: 'Visualisez vos revenus mensuels, IFM, ICCP et comparez avec votre objectif. Export fiscal annuel.' },
-            { icon: '🏥', title: 'Gestion des établissements', desc: 'Gérez tous vos établissements avec leurs taux horaires, créneaux et contacts en un seul endroit.' },
-            { icon: '🔔', title: 'Alertes intelligentes', desc: 'Soyez alerté si un contrat n&apos;est pas signé avant votre mission ou si une fiche de paie est manquante.' },
-            { icon: '📊', title: 'Analyses détaillées', desc: 'Graphiques et statistiques pour suivre votre activité, vos établissements préférés et votre progression.' },
-            { icon: '🔄', title: 'Synchronisation temps réel', desc: 'Synchronisation automatique toutes les 15 minutes avec Google Agenda pour ne rien manquer.' },
-          ].map((feature, i) => (
-            <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '16px' }}>{feature.icon}</div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-primary)' }}>{feature.title}</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>{feature.desc}</p>
+          {/* Formulaire email */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#7c3aed', marginBottom: '5px' }}>Email</label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                placeholder="vous@exemple.com"
+                style={{ width: '100%', padding: '10px 13px', borderRadius: '9px', border: '1.5px solid #e9d5f9', background: 'white', color: '#3b0764', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }}
+              />
             </div>
-          ))}
-        </div>
-      </section>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#7c3aed', marginBottom: '5px' }}>Mot de passe</label>
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                placeholder="••••••••"
+                style={{ width: '100%', padding: '10px 13px', borderRadius: '9px', border: '1.5px solid #e9d5f9', background: 'white', color: '#3b0764', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }}
+              />
+            </div>
 
-      {/* CTA */}
-      <section style={{ margin: '0 40px 100px', borderRadius: '24px', background: 'linear-gradient(135deg, #0e7490 0%, #0f172a 100%)', padding: '80px 40px', textAlign: 'center', border: '1px solid rgba(6,182,212,0.2)' }}>
-        <h2 style={{ fontSize: '40px', fontWeight: 800, marginBottom: '16px', color: 'white' }}>
-          Prêt à simplifier votre gestion ?
-        </h2>
-        <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.7)', marginBottom: '40px' }}>
-          Rejoignez InterimPro gratuitement et prenez le contrôle de votre carrière
-        </p>
-        <Link href="/auth/login" style={{ padding: '16px 40px', borderRadius: '12px', background: 'white', color: '#0e7490', textDecoration: 'none', fontSize: '16px', fontWeight: 700 }}>
-          Créer mon compte gratuit
-        </Link>
-      </section>
+            {msg.text && (
+              <div style={{ padding: '9px 12px', borderRadius: '8px', background: msg.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${msg.ok ? '#86efac' : '#fca5a5'}`, fontSize: '13px', color: msg.ok ? '#166534' : '#dc2626' }}>
+                {msg.text}
+              </div>
+            )}
 
-      {/* FOOTER */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '40px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'white' }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14v-4H7l5-8v4h4l-5 8z"/>
-            </svg>
-          </div>
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>InterimPro</span>
+            <button type="submit" disabled={loading} style={{ padding: '11px', borderRadius: '11px', border: 'none', background: 'linear-gradient(135deg, #e87bf9, #a855f7)', color: 'white', fontSize: '14px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 12px rgba(168,85,247,0.3)', marginTop: '2px' }}>
+              {loading ? 'Chargement...' : isRegister ? 'Créer mon compte' : 'Se connecter'}
+            </button>
+          </form>
+
+          <button onClick={() => { setIsRegister(!isRegister); setMsg({ text: '', ok: true }) }} style={{ width: '100%', marginTop: '14px', fontSize: '13px', color: '#9333ea', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+            {isRegister ? 'Déjà un compte ? Se connecter' : 'Pas encore de compte ? S\'inscrire'}
+          </button>
         </div>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>© 2026 InterimPro — Tous droits réservés</p>
-      </footer>
+      </div>
     </div>
   )
 }

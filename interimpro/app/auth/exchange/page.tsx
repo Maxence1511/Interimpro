@@ -4,35 +4,23 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function ExchangePage() {
   const [status, setStatus] = useState('Connexion en cours...')
-
   useEffect(() => {
-    const supabase = createClient()
-
-    // createBrowserClient détecte ?code= automatiquement et fait l'échange
-    // On attend juste l'événement SIGNED_IN sans appeler exchangeCodeForSession
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setStatus('Connecté !')
-        window.location.replace('/dashboard')
-      }
-    })
-
-    // Timeout de sécurité si rien ne se passe
-    const timeout = setTimeout(() => {
-      window.location.href = '/?error=timeout'
-    }, 8000)
-
-    return () => {
-      subscription.unsubscribe()
-      clearTimeout(timeout)
+    const run = async () => {
+      const code = new URLSearchParams(window.location.search).get('code')
+      if (!code) { window.location.href = '/?error=no_code'; return }
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      if (error || !data.session) { window.location.href = '/?error=auth_error'; return }
+      setStatus('Connecté !')
+      setTimeout(() => window.location.replace('/dashboard'), 200)
     }
+    run()
   }, [])
-
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #fce7f3, #ede9fe)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid rgba(232,123,249,0.25)', borderTop: '3px solid #e87bf9', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: '#7c3aed', fontSize: '15px', fontWeight: 500 }}>{status}</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#fdf4ff,#fae8ff,#f3e8ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(232,121,249,.2)', borderTop: '3px solid #e879f9', animation: 'spin .8s linear infinite' }} />
+      <p style={{ color: '#7c3aed', fontSize: 15, fontWeight: 500 }}>{status}</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

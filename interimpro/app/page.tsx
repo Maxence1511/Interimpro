@@ -14,12 +14,13 @@ export default function LoginPage() {
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', '#e879f9')
     document.documentElement.removeAttribute('data-theme')
+    // Si déjà connecté → dashboard
     getSupabase().auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/dashboard')
     })
-    // Afficher l'erreur auth si redirigé depuis /auth/callback
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('error')) setErr('Connexion échouée. Réessayez.')
+    // Afficher l'erreur si présente
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('error')) setErr('Connexion échouée. Réessayez.')
   }, [])
 
   const handleGoogle = async () => {
@@ -27,8 +28,10 @@ export default function LoginPage() {
     const { error } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Pointer directement sur la route serveur — PAS /auth/exchange
+        // Implicit flow : le token revient dans le hash #access_token=...
+        // Pas de code_verifier, pas de cookie, fonctionne sur tous les datacenters
         redirectTo: window.location.origin + '/auth/callback',
+        skipBrowserRedirect: false,
       }
     })
     if (error) { setErr(error.message); setLoading(false) }
@@ -37,14 +40,19 @@ export default function LoginPage() {
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setErr('')
     const sb = getSupabase()
-    const { error } = mode === 'in'
-      ? await sb.auth.signInWithPassword({ email, password: pwd })
-      : await sb.auth.signUp({ email, password: pwd })
+    const fn = mode === 'in'
+      ? sb.auth.signInWithPassword({ email, password: pwd })
+      : sb.auth.signUp({ email, password: pwd })
+    const { error } = await fn
     if (error) { setErr(error.message); setLoading(false) }
     else router.replace('/dashboard')
   }
 
-  const inp: React.CSSProperties = { width:'100%', padding:'10px 13px', borderRadius:9, border:'1.5px solid #e9d5f9', background:'white', color:'#3b0764', fontSize:14, outline:'none', boxSizing:'border-box' }
+  const inp: React.CSSProperties = {
+    width:'100%', padding:'10px 13px', borderRadius:9,
+    border:'1.5px solid #e9d5f9', background:'white', color:'#3b0764',
+    fontSize:14, outline:'none', boxSizing:'border-box'
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#ede9fe 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, position:'relative', overflow:'hidden' }}>
@@ -71,7 +79,7 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            {loading ? 'Connexion...' : 'Continuer avec Google'}
+            {loading ? 'Redirection...' : 'Continuer avec Google'}
           </button>
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
             <div style={{ flex:1, height:1, background:'#f0d9fb' }}/><span style={{ fontSize:12, color:'#c084fc' }}>ou par email</span><div style={{ flex:1, height:1, background:'#f0d9fb' }}/>

@@ -1,39 +1,17 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Cette route n'est plus utilisée pour l'échange PKCE
+// Le client Supabase JS gère automatiquement le token depuis le hash
+// On redirige simplement vers /dashboard
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
-
-  if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            try { cookieStore.set({ name, value, ...options }) } catch {}
-          },
-          remove(name: string, options: CookieOptions) {
-            try { cookieStore.set({ name, value: '', ...options }) } catch {}
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
-    }
-    console.error('Auth exchange error:', error.message)
+  
+  // Si erreur OAuth
+  const error = searchParams.get('error')
+  if (error) {
+    return NextResponse.redirect(`${origin}/?error=auth`)
   }
-
-  // Rediriger vers la page de login avec message d'erreur
-  return NextResponse.redirect(`${origin}/?error=auth`)
+  
+  // Rediriger vers la page qui va traiter le hash/token côté client
+  return NextResponse.redirect(`${origin}/auth/session`)
 }

@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-
 export default function ExchangePage() {
   const [status, setStatus] = useState('Connexion en cours...')
   useEffect(() => {
@@ -17,10 +16,10 @@ export default function ExchangePage() {
     run()
   }, [])
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#fdf4ff,#fae8ff,#f3e8ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(232,121,249,.2)', borderTop: '3px solid #e879f9', animation: 'spin .8s linear infinite' }} />
-      <p style={{ color: '#7c3aed', fontSize: 15, fontWeight: 500 }}>{status}</p>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(232,121,249,.15)', borderTop: '3px solid #e879f9', animation: 'spin .8s linear infinite' }} />
+      <p style={{ color: '#94a3b8', fontSize: 14 }}>{status}</p>
+      <style>{\`@keyframes spin{to{transform:rotate(360deg)}}\`}</style>
     </div>
   )
 }

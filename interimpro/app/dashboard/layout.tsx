@@ -15,7 +15,7 @@ const NAV = [
   { key:'nav.import', href:'/dashboard/import-gcal', e:'🗓️' },
 ]
 
-function SettingsModal({ onClose }: { onClose: () => void }) {
+function SettingsModal({ onClose }: { onClose:()=>void }) {
   const { accent, darkMode, lang, objectif, setAccent, setDarkMode, setLang, setObjectif, savePrefs } = useTheme()
   const [saving, setSaving] = useState(false)
   const [ok, setOk] = useState(false)
@@ -45,7 +45,6 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
         <div style={S}>
           <div style={{ fontSize:14, fontWeight:700, color:'var(--text)', marginBottom:12 }}>🎯 Objectif mensuel</div>
-          <label style={{ display:'block', fontSize:12, color:'var(--text-muted)', marginBottom:6 }}>Heures par mois</label>
           <input type="number" step="0.5" value={objectif} onChange={e=>setObjectif(Number(e.target.value))} style={{ padding:'8px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--text)', fontSize:14, outline:'none', width:140 }}/>
         </div>
         <div style={S}>
@@ -62,7 +61,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function MonCompteModal({ user, onClose }: { user: any; onClose: () => void }) {
+function MonCompteModal({ user, onClose }: { user:any; onClose:()=>void }) {
   const { accent, userId } = useTheme()
   const [form, setForm] = useState({ first_name:'', last_name:'', telephone:'', specialite:'Infirmier(e)', numero_rpps:'', photo_url:'' })
   const [saving, setSaving] = useState(false)
@@ -73,29 +72,27 @@ function MonCompteModal({ user, onClose }: { user: any; onClose: () => void }) {
 
   useEffect(() => {
     if (!userId) return
-    const sb = getSupabase()
-    sb.from('user_profiles').select('*').eq('user_id', userId).maybeSingle()
+    getSupabase().from('user_profiles').select('*').eq('user_id', userId).maybeSingle()
       .then(({ data }) => { if (data) setForm({ first_name:data.first_name||'', last_name:data.last_name||'', telephone:data.telephone||'', specialite:data.specialite||'Infirmier(e)', numero_rpps:data.numero_rpps||'', photo_url:data.photo_url||'' }) })
   }, [userId])
 
   const uploadPhoto = async (file: File) => {
     if (!userId) return
-    const sb = getSupabase()
     setUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${userId}/avatar.${ext}`
-    await sb.storage.from('avatars').upload(path, file, { upsert: true })
-    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(path)
+    await getSupabase().storage.from('avatars').upload(path, file, { upsert: true })
+    const { data: { publicUrl } } = getSupabase().storage.from('avatars').getPublicUrl(path)
     setForm(f => ({ ...f, photo_url: publicUrl + '?t=' + Date.now() }))
     setUploading(false)
   }
 
   const save = async () => {
     if (!userId) return
-    const sb = getSupabase()
     setSaving(true)
+    const sb = getSupabase()
     const payload = { user_id:userId, first_name:form.first_name, last_name:form.last_name, nom_complet:`${form.first_name} ${form.last_name}`.trim(), telephone:form.telephone, specialite:form.specialite, numero_rpps:form.numero_rpps, photo_url:form.photo_url }
-    const { data: ex } = await sb.from('user_profiles').select('id').eq('user_id', userId).maybeSingle()
+    const { data:ex } = await sb.from('user_profiles').select('id').eq('user_id', userId).maybeSingle()
     if (ex) await sb.from('user_profiles').update(payload).eq('user_id', userId)
     else await sb.from('user_profiles').insert(payload)
     setSaving(false); setOk(true); setTimeout(()=>setOk(false),2000)
@@ -111,7 +108,7 @@ function MonCompteModal({ user, onClose }: { user: any; onClose: () => void }) {
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', fontSize:22 }}>✕</button>
         </div>
         <div style={{ textAlign:'center', marginBottom:20 }}>
-          <div onClick={()=>fileRef.current?.click()} style={{ width:80, height:80, borderRadius:'50%', margin:'0 auto 8px', cursor:'pointer', position:'relative', overflow:'hidden', border:`3px solid ${accent}`, background:'var(--bg-input)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div onClick={()=>fileRef.current?.click()} style={{ width:80, height:80, borderRadius:'50%', margin:'0 auto 8px', cursor:'pointer', border:`3px solid ${accent}`, background:'var(--bg-input)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
             {form.photo_url ? <img src={form.photo_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt=""/> : <span style={{ fontSize:28, fontWeight:700, color:accent }}>{initials}</span>}
           </div>
           <div style={{ fontSize:11, color:'var(--text-dim)', cursor:'pointer' }} onClick={()=>fileRef.current?.click()}>{uploading?'Upload...':'📷 Changer la photo'}</div>
@@ -139,7 +136,7 @@ function MonCompteModal({ user, onClose }: { user: any; onClose: () => void }) {
   )
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children:React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [ready, setReady] = useState(false)
   const [profile, setProfile] = useState<any>(null)
@@ -152,20 +149,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const sb = getSupabase()
-    // Vérifier la session au montage
-    sb.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) { window.location.replace('/'); return }
-      setUser(session.user)
+    let settled = false
+
+    const settle = (sessionUser: any) => {
+      if (settled) return
+      settled = true
+      if (!sessionUser) {
+        window.location.replace('/')
+        return
+      }
+      setUser(sessionUser)
       setReady(true)
-      // Charger le profil
-      sb.from('user_profiles').select('first_name,last_name,specialite,photo_url').eq('user_id', session.user.id).maybeSingle()
+      sb.from('user_profiles').select('first_name,last_name,specialite,photo_url')
+        .eq('user_id', sessionUser.id).maybeSingle()
         .then(({ data }) => { if (data) setProfile(data) })
-    })
-    // Écouter les changements auth (déconnexion)
+    }
+
+    // Écouter onAuthStateChange — fonctionne aussi avec implicit flow
+    // car Supabase JS parse le hash automatiquement au démarrage
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') window.location.replace('/')
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        settle(session?.user || null)
+      } else if (event === 'SIGNED_OUT') {
+        window.location.replace('/')
+      }
     })
-    return () => subscription.unsubscribe()
+
+    // Vérifier aussi via getSession (cas où la session est déjà établie)
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        settle(data.session.user)
+      }
+    })
+
+    // Timeout 8 secondes : si toujours rien → login
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        window.location.replace('/')
+      }
+    }, 8000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   useEffect(() => {
@@ -178,24 +206,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const logout = async () => { await getSupabase().auth.signOut() }
-  const isActive = (item: typeof NAV[0]) => item.exact ? pathname===item.href : pathname.startsWith(item.href)
+  const isActive = (item:typeof NAV[0]) => item.exact ? pathname===item.href : pathname.startsWith(item.href)
   const displayName = profile?.first_name || user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
   const initials = `${profile?.first_name?.[0]||''}${profile?.last_name?.[0]||''}`.toUpperCase() || displayName?.[0]?.toUpperCase() || '?'
-
-  // Sidebar : toujours foncée (dark navy) mais légèrement différente selon le mode
   const sidebarBg = darkMode ? '#0d1526' : '#1e293b'
 
   if (!ready) return (
-    <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+    <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12 }}>
       <div style={{ width:36, height:36, borderRadius:'50%', border:`3px solid ${accent}30`, borderTop:`3px solid ${accent}`, animation:'spin .8s linear infinite' }}/>
+      <div style={{ fontSize:13, color:'var(--text-dim)' }}>Chargement...</div>
       <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
     </div>
   )
+
   if (!user) return null
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg)' }}>
-      {/* SIDEBAR — fond toujours sombre (navy/slate) */}
       <aside style={{ width:230, minWidth:230, background:sidebarBg, display:'flex', flexDirection:'column', position:'sticky', top:0, height:'100vh', zIndex:20, borderRight:'1px solid rgba(255,255,255,.05)', transition:'background .3s' }}>
         <Link href="/dashboard" style={{ padding:'18px 16px 14px', display:'flex', alignItems:'center', gap:10, textDecoration:'none', borderBottom:'1px solid rgba(255,255,255,.07)' }}>
           <div style={{ width:36, height:36, minWidth:36, borderRadius:10, background:`${accent}20`, border:`1px solid ${accent}40`, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -230,11 +257,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <button onClick={()=>setShowSettings(true)} style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', background:'transparent', color:'rgba(255,255,255,.45)', cursor:'pointer', fontSize:13, marginBottom:1, textAlign:'left' }}>⚙️ Paramètres</button>
-          <button onClick={logout} style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', background:'transparent', color:'rgba(239,68,68,.7)', cursor:'pointer', fontSize:13, textAlign:'left', marginTop:2 }}>🚪 Déconnexion</button>
+          <button onClick={logout} style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', background:'transparent', color:'rgba(239,68,68,.7)', cursor:'pointer', fontSize:13, marginTop:2, textAlign:'left' }}>🚪 Déconnexion</button>
         </div>
       </aside>
 
-      {/* MAIN */}
       <main style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         <div style={{ height:56, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 36px', borderBottom:'1px solid var(--topbar-border)', background:'var(--bg)', position:'sticky', top:0, zIndex:15 }}>
           <div style={{ fontSize:18, fontWeight:700, color:'var(--text)' }}>{dateStr}</div>
@@ -249,7 +275,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {showSettings && <SettingsModal onClose={()=>setShowSettings(false)}/>}
       {showCompte && <MonCompteModal user={user} onClose={()=>setShowCompte(false)}/>}
-      <style>{'@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'}</style>
     </div>
   )
 }

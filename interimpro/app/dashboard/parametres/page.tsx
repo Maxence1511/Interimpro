@@ -1,135 +1,146 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTheme } from '@/lib/theme-context'
 
-const SPECS = ['Infirmier(e)', 'Aide-soignant(e)', 'Infirmier(e) spécialisé(e)', 'Cadre de santé', 'Puériculteur(trice)', 'IBODE', 'IADE', 'Autre']
-const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const }
+const COLORS = [
+  '#3b82f6','#6366f1','#8b5cf6','#a855f7','#e879f9','#ec4899','#f43f5e','#ef4444',
+  '#dc2626','#f97316','#f59e0b','#eab308','#ca8a04','#84cc16','#22c55e','#10b981',
+  '#14b8a6','#06b6d4','#22d3ee','#38bdf8','#94a3b8','#6b7280','#4b5563','#374151',
+]
+const LANGS = [
+  { value:'fr', label:'Français', flag:'🇫🇷' },
+  { value:'en', label:'English', flag:'🇬🇧' },
+  { value:'es', label:'Español', flag:'🇪🇸' },
+]
 
 export default function ParametresPage() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState({ first_name: '', last_name: '', telephone: '', specialite: 'Infirmier(e)', numero_rpps: '' })
-  const [prefs, setPrefs] = useState({ objectif_heures_mensuel: 152 })
+  const { accent, darkMode, setAccent, setDarkMode, savePrefs } = useTheme()
+  const [objectif, setObjectif] = useState(152)
+  const [langue, setLangue] = useState('fr')
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      const [p, pref] = await Promise.all([
-        supabase.from('user_profiles').select('*').eq('user_id', user?.id).single(),
-        supabase.from('user_preferences').select('*').eq('user_id', user?.id).single(),
-      ])
-      if (p.data) setProfile({ first_name: p.data.first_name || '', last_name: p.data.last_name || '', telephone: p.data.telephone || '', specialite: p.data.specialite || 'Infirmier(e)', numero_rpps: p.data.numero_rpps || '' })
-      if (pref.data) setPrefs({ objectif_heures_mensuel: pref.data.objectif_heures_mensuel || 152 })
-      setLoading(false)
+      if (!user) return
+      const { data } = await supabase.from('user_preferences').select('*').eq('user_id', user.id).single()
+      if (data) {
+        setObjectif(data.objectif_heures_mensuel || 152)
+        setLangue(data.langue || 'fr')
+      }
     }
     load()
   }, [])
 
-  const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 2500) }
-
-  const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const save = async () => {
+    setSaving(true)
+    // Sauvegarder les couleurs via le ThemeContext
+    await savePrefs()
+    // Sauvegarder les autres prefs dans Supabase
     const { data: { user } } = await supabase.auth.getUser()
-    const payload = { ...profile, nom_complet: `${profile.first_name} ${profile.last_name}`, user_id: user?.id }
-    const ex = await supabase.from('user_profiles').select('id').eq('user_id', user?.id).single()
-    if (ex.data) await supabase.from('user_profiles').update(payload).eq('user_id', user?.id)
-    else await supabase.from('user_profiles').insert({ ...payload, id: user?.id })
-    flash()
+    if (user) {
+      const { data: ex } = await supabase.from('user_preferences').select('id').eq('user_id', user.id).single()
+      const payload = { couleur_theme: accent, mode_sombre: darkMode, objectif_heures_mensuel: objectif, langue, user_id: user.id }
+      if (ex) await supabase.from('user_preferences').update(payload).eq('user_id', user.id)
+      else await supabase.from('user_preferences').insert({ ...payload, id: user.id })
+    }
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
   }
 
-  const savePrefs = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const ex = await supabase.from('user_preferences').select('id').eq('user_id', user?.id).single()
-    if (ex.data) await supabase.from('user_preferences').update(prefs).eq('user_id', user?.id)
-    else await supabase.from('user_preferences').insert({ ...prefs, user_id: user?.id, id: user?.id })
-    flash()
-  }
-
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Chargement...</div>
+  const section: React.CSSProperties = { background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, padding:24, marginBottom:14 }
+  const inp: React.CSSProperties = { padding:'8px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text)', fontSize:14, outline:'none' }
 
   return (
-    <div style={{ maxWidth: 620 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Paramètres</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>Gérez votre profil et vos préférences</p>
-      </div>
+    <div style={{ maxWidth:640 }}>
+      <h1 style={{ fontSize:22, fontWeight:800, color:'var(--text)', marginBottom:22 }}>Paramètres</h1>
 
-      {saved && (
-        <div style={{ padding: '11px 16px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', fontSize: 13, marginBottom: 16, fontWeight: 600 }}>
-          ✅ Enregistré avec succès !
-        </div>
-      )}
+      {saved && <div style={{ padding:'10px 14px', borderRadius:9, background:'rgba(16,185,129,.1)', border:'1px solid rgba(16,185,129,.3)', fontSize:13, color:'#10b981', marginBottom:14, fontWeight:600, animation:'fadeIn .2s ease' }}>✅ Paramètres sauvegardés !</div>}
 
-      {/* Compte */}
-      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Compte Google</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 10, background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-          {user?.user_metadata?.avatar_url && (
-            <img src={user.user_metadata.avatar_url} style={{ width: 46, height: 46, borderRadius: '50%', border: '2px solid var(--accent-border)' }} alt="" />
-          )}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{user?.user_metadata?.full_name || 'Utilisateur'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{user?.email}</div>
-          </div>
-          <span style={{ padding: '3px 10px', borderRadius: 100, background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontSize: 11, fontWeight: 700 }}>Connecté</span>
+      {/* Aperçu couleur en temps réel */}
+      <div style={{ ...section, display:'flex', alignItems:'center', gap:12, padding:'14px 20px', background:'var(--accent-dim)', border:'1px solid var(--accent-border)' }}>
+        <div style={{ width:36, height:36, borderRadius:9, background:accent, boxShadow:`0 4px 12px ${accent}60`, flexShrink:0 }} />
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>Aperçu de votre thème</div>
+          <div style={{ fontSize:12, color:'var(--text-muted)' }}>{darkMode ? '🌙 Mode sombre' : '☀️ Mode clair'} — Accent <code style={{ color:accent }}>{accent}</code></div>
         </div>
       </div>
 
-      {/* Profil */}
-      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Profil professionnel</h2>
-        <form onSubmit={saveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Prénom</label>
-              <input value={profile.first_name} onChange={e => setProfile({ ...profile, first_name: e.target.value })} placeholder="Solesne" style={inp} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Nom</label>
-              <input value={profile.last_name} onChange={e => setProfile({ ...profile, last_name: e.target.value })} placeholder="Bonnin" style={inp} />
-            </div>
-          </div>
+      {/* Apparence */}
+      <div style={section}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:20 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>Apparence</h2>
+        </div>
+
+        {/* Toggle dark mode */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, padding:'12px 14px', background:'var(--bg-input)', borderRadius:9 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Spécialité</label>
-            <select value={profile.specialite} onChange={e => setProfile({ ...profile, specialite: e.target.value })} style={inp}>
-              {SPECS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:2 }}>Mode sombre</div>
+            <div style={{ fontSize:12, color:'var(--text-dim)' }}>Basculer entre thème sombre et clair</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Téléphone</label>
-              <input value={profile.telephone} onChange={e => setProfile({ ...profile, telephone: e.target.value })} placeholder="06 XX XX XX XX" style={inp} />
+          <div onClick={() => setDarkMode(!darkMode)} style={{ width:48, height:26, borderRadius:100, background: darkMode ? accent : 'var(--border)', position:'relative', cursor:'pointer', transition:'background .25s', flexShrink:0 }}>
+            <div style={{ width:22, height:22, borderRadius:'50%', background:'white', position:'absolute', top:2, left: darkMode ? 24 : 2, transition:'left .25s', boxShadow:'0 1px 4px rgba(0,0,0,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>
+              {darkMode ? '🌙' : '☀️'}
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>N° RPPS</label>
-              <input value={profile.numero_rpps} onChange={e => setProfile({ ...profile, numero_rpps: e.target.value })} placeholder="RPPS..." style={inp} />
-            </div>
-          </div>
-          <button type="submit" style={{ padding: '10px 18px', borderRadius: 9, background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, alignSelf: 'flex-start', boxShadow: '0 2px 8px rgba(217,70,239,.25)' }}>
-            Enregistrer le profil
-          </button>
-        </form>
-      </div>
-
-      {/* Préférences */}
-      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 22 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Préférences</h2>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Objectif heures mensuelles</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input type="number" step="0.5" value={prefs.objectif_heures_mensuel}
-              onChange={e => setPrefs({ ...prefs, objectif_heures_mensuel: Number(e.target.value) })}
-              style={{ ...inp, width: 130 }} />
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>h/mois · (temps plein = 151,67h)</span>
           </div>
         </div>
-        <button onClick={savePrefs} style={{ padding: '10px 18px', borderRadius: 9, background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 2px 8px rgba(217,70,239,.25)' }}>
-          Enregistrer les préférences
-        </button>
+
+        {/* Couleurs */}
+        <div>
+          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>Couleur accent ({COLORS.length})</div>
+          <div style={{ fontSize:11, color:'var(--text-dim)', marginBottom:12 }}>Appliquée à toute l'interface en temps réel</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(8, 1fr)', gap:8 }}>
+            {COLORS.map(c => (
+              <div key={c} onClick={() => setAccent(c)}
+                title={c}
+                style={{ width:'100%', aspectRatio:'1', borderRadius:10, background:c, cursor:'pointer', border: accent===c ? '3px solid white' : '3px solid transparent', boxShadow: accent===c ? `0 0 0 2px ${c}, 0 4px 12px ${c}60` : `0 2px 6px ${c}30`, transition:'all .15s', transform: accent===c ? 'scale(1.1)' : 'scale(1)' }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Objectifs */}
+      <div style={section}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:18 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>Objectifs</h2>
+        </div>
+        <div>
+          <label style={{ display:'block', fontSize:13, fontWeight:500, color:'var(--text-muted)', marginBottom:8 }}>Objectif heures mensuelles</label>
+          <input type="number" step="0.5" value={objectif} onChange={e => setObjectif(Number(e.target.value))} style={{ ...inp, width:180 }} />
+          <div style={{ marginTop:8, height:5, background:'var(--bg-input)', borderRadius:100, overflow:'hidden', maxWidth:300 }}>
+            <div style={{ height:'100%', width:`${Math.min((objectif/200)*100,100)}%`, background:`linear-gradient(90deg,${accent},#a855f7)`, borderRadius:100, transition:'width .3s' }} />
+          </div>
+          <div style={{ fontSize:11, color:'var(--text-dim)', marginTop:4 }}>{objectif}h / 200h (référence)</div>
+        </div>
+      </div>
+
+      {/* Langue */}
+      <div style={section}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:18 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>Langue &amp; Région</h2>
+        </div>
+        <div>
+          <label style={{ display:'block', fontSize:13, fontWeight:500, color:'var(--text-muted)', marginBottom:10 }}>Langue (impacte les jours fériés du calendrier)</label>
+          <div style={{ display:'flex', gap:10 }}>
+            {LANGS.map(l => (
+              <button key={l.value} onClick={() => setLangue(l.value)} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderRadius:9, border:`1.5px solid ${langue===l.value ? accent : 'var(--border)'}`, background: langue===l.value ? 'var(--accent-dim)' : 'var(--bg-input)', color: langue===l.value ? accent : 'var(--text-muted)', cursor:'pointer', fontSize:13, fontWeight: langue===l.value ? 700 : 400, transition:'all .15s' }}>
+                <span style={{ fontSize:18 }}>{l.flag}</span>{l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button onClick={save} disabled={saving} style={{ width:'100%', padding:'14px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${accent},#a855f7)`, color:'white', fontSize:15, fontWeight:700, cursor:'pointer', opacity: saving?.7:1, display:'flex', alignItems:'center', justifyContent:'center', gap:10, boxShadow:`0 4px 20px ${accent}40`, transition:'opacity .15s' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
+      </button>
     </div>
   )
 }

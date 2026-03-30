@@ -1,5 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr'
+
+// Singleton — une seule instance pour toute l'app
 let client: ReturnType<typeof createBrowserClient> | null = null
+
 export function createClient() {
   if (!client) {
     client = createBrowserClient(

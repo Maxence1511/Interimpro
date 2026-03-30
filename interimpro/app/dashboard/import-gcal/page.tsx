@@ -38,7 +38,7 @@ export default function ImportGCalPage() {
   const load = useCallback(async () => {
     if (!userId) return
     const [s, e] = await Promise.all([
-      supabase.from('google_calendar_sync').select('*').eq('user_id',userId).single(),
+      supabase.from('google_calendar_sync').select('*').eq('user_id',userId).maybeSingle(),
       supabase.from('etablissements').select('*').eq('user_id',userId).eq('archived',false).order('nom'),
     ])
     setSyncData(s.data)
@@ -93,7 +93,7 @@ export default function ImportGCalPage() {
       if (!etabId && m.create_etab) {
         const newName = newEtabNames[m.event.id] || m.suggested_etab
         if (newName) {
-          const { data } = await supabase.from('etablissements').insert({ user_id:userId, nom:newName, taux_horaire:16, archived:false, creneaux:[] }).select('id').single()
+          const { data } = await supabase.from('etablissements').insert({ user_id:userId, nom:newName, taux_horaire:16, archived:false, creneaux:[] }).select('id').maybeSingle()
           if (data) etabId = data.id
         }
       }
@@ -110,7 +110,7 @@ export default function ImportGCalPage() {
     }
     // Mettre à jour le sync
     const syncPayload = { user_id:userId, last_sync_at:new Date().toISOString(), events_processed:created }
-    const { data:ex } = await supabase.from('google_calendar_sync').select('id').eq('user_id',userId).single()
+    const { data:ex } = await supabase.from('google_calendar_sync').select('id').eq('user_id',userId).maybeSingle()
     if (ex) await supabase.from('google_calendar_sync').update(syncPayload).eq('user_id',userId)
     else await supabase.from('google_calendar_sync').insert(syncPayload)
     setImportResult({ created, skipped })

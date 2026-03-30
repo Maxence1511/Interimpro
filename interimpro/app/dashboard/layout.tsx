@@ -269,7 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User footer */}
         <div style={{ padding:'12px 10px 16px', borderTop:'1px solid rgba(255,255,255,.06)', flexShrink:0 }}>
-          <div style={{ padding:'9px 13px', marginBottom:2, background:'var(--accent-dim)', borderRadius:10, marginBottom:10 }}>
+          <div style={{ padding:'9px 13px', background:'var(--accent-dim)', borderRadius:10, marginBottom:10 }}>
             <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:1 }}>Bonjour 👋</div>
             <div style={{ fontSize:14, fontWeight:700, color:'white' }}>{displayName}</div>
             <div style={{ display:'inline-block', fontSize:10, color:accent, background:`${accent}20`, border:`1px solid ${accent}40`, borderRadius:100, padding:'2px 8px', marginTop:3 }}>

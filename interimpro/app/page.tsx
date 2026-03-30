@@ -12,23 +12,23 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const d = document.documentElement
-    d.style.setProperty('--accent', '#e879f9')
-    d.removeAttribute('data-theme')
-    // Vérifier si déjà connecté
+    document.documentElement.style.setProperty('--accent', '#e879f9')
+    document.documentElement.removeAttribute('data-theme')
     getSupabase().auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/dashboard')
     })
+    // Afficher l'erreur auth si redirigé depuis /auth/callback
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error')) setErr('Connexion échouée. Réessayez.')
   }, [])
 
   const handleGoogle = async () => {
     setLoading(true); setErr('')
-    // redirectTo = /auth/exchange qui redirige vers /auth/callback (route serveur)
     const { error } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/auth/exchange',
-        queryParams: { access_type: 'offline', prompt: 'consent' }
+        // Pointer directement sur la route serveur — PAS /auth/exchange
+        redirectTo: window.location.origin + '/auth/callback',
       }
     })
     if (error) { setErr(error.message); setLoading(false) }

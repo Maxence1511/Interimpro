@@ -12,23 +12,24 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Appliquer le thème login
     const d = document.documentElement
     d.style.setProperty('--accent', '#e879f9')
     d.removeAttribute('data-theme')
     // Vérifier si déjà connecté
-    const sb = getSupabase()
-    sb.auth.getSession().then(({ data }) => {
+    getSupabase().auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/dashboard')
     })
   }, [])
 
   const handleGoogle = async () => {
     setLoading(true); setErr('')
-    const sb = getSupabase()
-    const { error } = await sb.auth.signInWithOAuth({
+    // redirectTo = /auth/exchange qui redirige vers /auth/callback (route serveur)
+    const { error } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/auth/exchange' }
+      options: {
+        redirectTo: window.location.origin + '/auth/exchange',
+        queryParams: { access_type: 'offline', prompt: 'consent' }
+      }
     })
     if (error) { setErr(error.message); setLoading(false) }
   }
@@ -46,8 +47,10 @@ export default function LoginPage() {
   const inp: React.CSSProperties = { width:'100%', padding:'10px 13px', borderRadius:9, border:'1.5px solid #e9d5f9', background:'white', color:'#3b0764', fontSize:14, outline:'none', boxSizing:'border-box' }
 
   return (
-    <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#ede9fe 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-      <div style={{ width:'100%', maxWidth:400 }}>
+    <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#ede9fe 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'fixed', top:-80, right:-80, width:300, height:300, borderRadius:'50%', background:'rgba(232,123,249,0.12)', pointerEvents:'none' }}/>
+      <div style={{ position:'fixed', bottom:-60, left:-60, width:250, height:250, borderRadius:'50%', background:'rgba(167,139,250,0.10)', pointerEvents:'none' }}/>
+      <div style={{ width:'100%', maxWidth:400, position:'relative', zIndex:1 }}>
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <div style={{ width:64, height:64, borderRadius:18, background:'white', boxShadow:'0 4px 20px rgba(232,123,249,0.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#e87bf9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -76,10 +79,12 @@ export default function LoginPage() {
           <form onSubmit={handleEmail} style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div><label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7c3aed', marginBottom:5 }}>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.com" required style={inp}/></div>
             <div><label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7c3aed', marginBottom:5 }}>Mot de passe</label><input type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••" required style={inp}/></div>
-            <button type="submit" disabled={loading} style={{ padding:11, borderRadius:11, border:'none', background:'linear-gradient(135deg,#e87bf9,#a855f7)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 12px rgba(168,85,247,0.3)' }}>{loading?'...':mode==='in'?'Se connecter':'S\'inscrire'}</button>
+            <button type="submit" disabled={loading} style={{ padding:11, borderRadius:11, border:'none', background:'linear-gradient(135deg,#e87bf9,#a855f7)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 12px rgba(168,85,247,0.3)', marginTop:2 }}>
+              {loading ? '...' : mode==='in' ? 'Se connecter' : "S'inscrire"}
+            </button>
           </form>
           <button onClick={()=>setMode(mode==='in'?'up':'in')} style={{ width:'100%', marginTop:14, fontSize:13, color:'#9333ea', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>
-            {mode==='in'?'Pas encore de compte ? S\'inscrire':'Déjà un compte ? Se connecter'}
+            {mode==='in' ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
           </button>
         </div>
       </div>

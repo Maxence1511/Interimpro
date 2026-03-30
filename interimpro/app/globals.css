@@ -11,19 +11,15 @@
   --bg-card: #1e2433;
   --bg-input: #252d3d;
   --bg-hover: #2a3447;
-  --bg-modal: #1e2433;
+  --bg-modal: #1a2235;
   --text: #f1f5f9;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
   --border: #2a3447;
-  --sidebar-bg: #0f172a;
+  --sidebar-bg: #0d1526;
   --topbar-border: #1e293b;
-  --shadow: rgba(0,0,0,0.5);
-  --overlay: rgba(0,0,0,0.65);
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --cyan: #22d3ee;
+  --shadow: rgba(0,0,0,0.6);
+  --overlay: rgba(0,0,0,0.7);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,29 +29,25 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s, color 0.2s;
 }
-
-/* Light mode overrides via data-theme attribute on html */
-[data-theme="light"] body { background: var(--bg); color: var(--text); }
 
 input, select, textarea, button { font-family: inherit; }
 
-input[type="date"], input[type="time"] {
-  color-scheme: dark;
-}
+input[type="date"], input[type="time"] { color-scheme: dark; }
 [data-theme="light"] input[type="date"],
-[data-theme="light"] input[type="time"] {
-  color-scheme: light;
-}
+[data-theme="light"] input[type="time"] { color-scheme: light; }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 @keyframes spin { to { transform: rotate(360deg) } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-@keyframes slideIn { from { opacity: 0; transform: scale(0.97) translateY(-4px) } to { opacity: 1; transform: none } }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:none } }
+@keyframes slideIn { from { opacity:0; transform:scale(.97) translateY(-6px) } to { opacity:1; transform:none } }
+@keyframes popIn { from { opacity:0; transform:scale(.85) } to { opacity:1; transform:scale(1) } }
 
-/* Transitions globales */
-a, button { transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s; }
+/* Sidebar mode clair */
+[data-theme="light"] .sidebar-dark {
+  background: #1e293b !important;
+}

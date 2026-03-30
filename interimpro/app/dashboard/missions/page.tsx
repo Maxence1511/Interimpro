@@ -291,19 +291,27 @@ export default function MissionsPage() {
       supabase.from('missions').select('*').eq('user_id',userId).order('date_debut',{ascending:false}),
       supabase.from('etablissements').select('*').eq('user_id',userId).eq('archived',false).order('nom'),
     ])
-    const rawMissions = (m.data||[]) as Mission[]
-    // Auto-passer en "passee" si la date est dépassée
-    const toUpdate = rawMissions.filter(mi => mi.statut==='a_venir' && isPassee(mi))
-    if (toUpdate.length > 0) {
-      await Promise.all(toUpdate.map(mi => supabase.from('missions').update({statut:'passee'}).eq('id',mi.id).eq('user_id',userId)))
-      toUpdate.forEach(mi => { mi.statut='passee' })
-    }
-    setMissions(rawMissions)
+    setMissions((m.data||[]) as Mission[])
     setEtabs((e.data||[]) as Etab[])
     setLoading(false)
   }, [userId])
 
-  useEffect(() => { if (userId) load() }, [load, userId])
+  // Auto-passage passée : UNE SEULE FOIS au montage, séparé de load()
+  const autoUpdateStatuts = useCallback(async () => {
+    if (!userId) return
+    const { data } = await supabase.from('missions').select('id,date_fin')
+      .eq('user_id', userId).eq('statut', 'a_venir')
+    if (!data || data.length === 0) return
+    const toPass = data.filter(m => m.date_fin && new Date(m.date_fin) < new Date())
+    if (toPass.length === 0) return
+    await supabase.from('missions').update({ statut: 'passee' })
+      .in('id', toPass.map(m => m.id)).eq('user_id', userId)
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    autoUpdateStatuts().then(() => load())
+  }, [userId]) // userId seulement — pas load ni autoUpdateStatuts dans les deps
 
   const toggleDoc = async (m:Mission, field:string) => {
     if (!userId) return

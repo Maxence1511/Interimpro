@@ -137,7 +137,7 @@ export default function ParametresPage() {
         </div>
       </div>
 
-      <button onClick={save} disabled={saving} style={{ width:'100%', padding:'14px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${accent},#a855f7)`, color:'white', fontSize:15, fontWeight:700, cursor:'pointer', opacity: saving?.7:1, display:'flex', alignItems:'center', justifyContent:'center', gap:10, boxShadow:`0 4px 20px ${accent}40`, transition:'opacity .15s' }}>
+      <button onClick={save} disabled={saving} style={{ width:'100%', padding:'14px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${accent},#a855f7)`, color:'white', fontSize:15, fontWeight:700, cursor:'pointer', opacity: saving ? 0.7 : 1, display:'flex', alignItems:'center', justifyContent:'center', gap:10, boxShadow:`0 4px 20px ${accent}40`, transition:'opacity .15s' }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
       </button>

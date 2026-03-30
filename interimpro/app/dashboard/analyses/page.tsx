@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase } from '@/lib/supabase/client'
 import { useTheme } from '@/lib/theme-context'
 import { t } from '@/lib/i18n'
 
@@ -12,7 +12,7 @@ export default function AnalysesPage() {
   const [etabs, setEtabs] = useState<Etab[]>([])
   const [moisSel, setMoisSel] = useState(new Date())
   const [anneeSel, setAnneeSel] = useState(new Date().getFullYear())
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
 
   useEffect(() => {

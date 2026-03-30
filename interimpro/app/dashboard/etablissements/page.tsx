@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase } from '@/lib/supabase/client'
 import { useTheme } from '@/lib/theme-context'
 import { t } from '@/lib/i18n'
 
@@ -11,7 +11,7 @@ const TYPES = ['EHPAD','Clinique','Hôpital','Laboratoire','Rééducation','Psyc
 const TCOLORS: Record<string,string> = { EHPAD:'#f59e0b', Clinique:'#e879f9', Hôpital:'#818cf8', Laboratoire:'#34d399', Rééducation:'#8b5cf6', Psychiatrie:'#ec4899', 'Maison de Santé':'#14b8a6', Autre:'#94a3b8' }
 
 function EtabModal({ editing, onClose, onSaved }: { editing:Etab|null; onClose:()=>void; onSaved:()=>void }) {
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
   const [form, setForm] = useState({ nom:'', groupe:'', type:'Hôpital', tauxStr:'14', telephone:'', email:'', notes:'', creneaux:[] as Creneau[] })
   const [saving, setSaving] = useState(false)
@@ -111,7 +111,7 @@ export default function EtablissementsPage() {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Etab|null>(null)
   const [showModal, setShowModal] = useState(false)
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
 
   const load = useCallback(async () => {

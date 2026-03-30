@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase } from '@/lib/supabase/client'
 import { useTheme } from '@/lib/theme-context'
 import { t } from '@/lib/i18n'
 
@@ -45,7 +45,7 @@ function calcH(d:string,f:string,p:number){ if(!d||!f) return 0; const a=new Dat
 function calcS(h:number,ta:number,n:boolean,d:boolean,f:boolean){ let m=0; if(n)m+=.25; if(d)m+=.50; if(f)m+=1; return Math.round(h*ta*(1+m)*100)/100 }
 
 function MissionModal({ date, mission, etabs, onClose, onSaved }: { date?:Date; mission?:Mission; etabs:Etab[]; onClose:()=>void; onSaved:()=>void }) {
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
   const today = date ? fmtDate(date) : fmtDate(new Date())
   const [form, setForm] = useState({
@@ -173,7 +173,7 @@ export default function CalendrierPage() {
   const [cur, setCur] = useState(new Date())
   const [modal, setModal] = useState<{date?:Date;mission?:Mission}|null>(null)
   const [hoveredDay, setHoveredDay] = useState<number|null>(null)
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
 
   const load = useCallback(async () => {

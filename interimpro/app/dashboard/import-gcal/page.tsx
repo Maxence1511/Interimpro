@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase } from '@/lib/supabase/client'
 import { useTheme } from '@/lib/theme-context'
 import { t } from '@/lib/i18n'
 
@@ -32,7 +32,7 @@ export default function ImportGCalPage() {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{created:number;skipped:number}|null>(null)
   const [newEtabNames, setNewEtabNames] = useState<Record<string,string>>({})
-  const supabase = createClient()
+  
   const { accent, lang, userId } = useTheme()
 
   const load = useCallback(async () => {

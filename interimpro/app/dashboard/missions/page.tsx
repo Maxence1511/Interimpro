@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase } from '@/lib/supabase/client'
 import { useTheme } from '@/lib/theme-context'
 
 type Creneau = { label:string; heure_debut:string; heure_fin:string; pause_minutes:number }
@@ -32,7 +32,7 @@ function isPassee(m:Mission) {
 
 // ===== MODAL MISSION (création + édition) =====
 function MissionModal({ etabs, editing, defaultDate, onClose, onSaved }: { etabs:Etab[]; editing:Mission|null; defaultDate?:string; onClose:()=>void; onSaved:()=>void }) {
-  const supabase = createClient()
+  
   const { accent, userId } = useTheme()
   const today = defaultDate || new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({
@@ -282,7 +282,7 @@ export default function MissionsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Mission|null>(null)
   const [viewing, setViewing] = useState<Mission|null>(null)
-  const supabase = createClient()
+  
   const { accent, userId } = useTheme()
 
   const load = useCallback(async () => {

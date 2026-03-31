@@ -1,11 +1,4 @@
 'use client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-// Les paramètres sont maintenant une popup accessible depuis la sidebar
-// Cette page redirige vers le dashboard
-export default function ParametresPage() {
-  const router = useRouter()
-  useEffect(() => { router.replace('/dashboard') }, [])
-  return null
+export default function ParamsPage(){
+  return<div style={{padding:20,color:'var(--text)',fontSize:14}}>Les paramètres sont accessibles via le menu ⚙️ dans la sidebar.</div>
 }

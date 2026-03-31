@@ -6,12 +6,13 @@ import type { Lang } from '@/lib/i18n'
 type Ctx = {
   accent: string; darkMode: boolean; lang: Lang; objectif: number; userId: string | null
   setAccent: (c: string) => void; setDarkMode: (v: boolean) => void
-  setLang: (l: Lang) => void; setObjectif: (n: number) => void; savePrefs: () => Promise<void>
+  setLang: (l: Lang) => void; setObjectif: (n: number) => void
+  savePrefs: () => Promise<void>
 }
 
 const Ctx = createContext<Ctx>({
-  accent: '#e879f9', darkMode: true, lang: 'fr', objectif: 152, userId: null,
-  setAccent:()=>{}, setDarkMode:()=>{}, setLang:()=>{}, setObjectif:()=>{}, savePrefs:async()=>{},
+  accent:'#e879f9', darkMode:true, lang:'fr', objectif:152, userId:null,
+  setAccent:()=>{}, setDarkMode:()=>{}, setLang:()=>{}, setObjectif:()=>{}, savePrefs:async()=>{}
 })
 
 export const useTheme = () => useContext(Ctx)
@@ -48,44 +49,51 @@ export function applyTheme(accent: string, dark: boolean) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [accent, _setAccent] = useState('#e879f9')
-  const [darkMode, _setDark] = useState(true)
-  const [lang, _setLang] = useState<Lang>('fr')
-  const [objectif, _setObj] = useState(152)
+  const [accent, _setA] = useState('#e879f9')
+  const [darkMode, _setD] = useState(true)
+  const [lang, _setL] = useState<Lang>('fr')
+  const [objectif, _setO] = useState(152)
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Appliquer cache local immédiatement (pas de flash)
+    // Cache local immédiat
     try {
       const c = localStorage.getItem('ip_t')
-      if (c) { const p=JSON.parse(c); _setAccent(p.a||'#e879f9'); _setDark(p.d!==false); if(p.l)_setLang(p.l); if(p.o)_setObj(p.o); applyTheme(p.a||'#e879f9',p.d!==false) }
-      else applyTheme('#e879f9',true)
-    } catch { applyTheme('#e879f9',true) }
+      if (c) {
+        const p = JSON.parse(c)
+        _setA(p.a||'#e879f9'); _setD(p.d!==false)
+        if(p.l) _setL(p.l); if(p.o) _setO(p.o)
+        applyTheme(p.a||'#e879f9', p.d!==false)
+      } else { applyTheme('#e879f9', true) }
+    } catch { applyTheme('#e879f9', true) }
 
     const sb = getSupabase()
     let prefsLoaded = false
 
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-      const uid = session?.user?.id || null
-      setUserId(uid)
-      if (!uid || prefsLoaded) return
+      setUserId(session?.user?.id || null)
+      if (!session?.user?.id || prefsLoaded) return
       prefsLoaded = true
-      const { data } = await sb.from('user_preferences').select('couleur_theme,mode_sombre,langue,objectif_heures_mensuel').eq('user_id',uid).maybeSingle()
+      const { data } = await sb.from('user_preferences')
+        .select('couleur_theme,mode_sombre,langue,objectif_heures_mensuel')
+        .eq('user_id', session.user.id).maybeSingle()
       if (!data) return
-      const a=data.couleur_theme||'#e879f9', d=data.mode_sombre!==false, l=(data.langue||'fr') as Lang, o=Number(data.objectif_heures_mensuel)||152
-      _setAccent(a); _setDark(d); _setLang(l); _setObj(o)
-      applyTheme(a,d)
+      const a=data.couleur_theme||'#e879f9', d=data.mode_sombre!==false
+      const l=(data.langue||'fr') as Lang, o=Number(data.objectif_heures_mensuel)||152
+      _setA(a); _setD(d); _setL(l); _setO(o)
+      applyTheme(a, d)
       localStorage.setItem('ip_t', JSON.stringify({a,d,l,o}))
     })
+
     return () => subscription.unsubscribe()
   }, [])
 
-  const setAccent = useCallback((c:string)=>{ _setAccent(c); applyTheme(c,darkMode) }, [darkMode])
-  const setDarkMode = useCallback((v:boolean)=>{ _setDark(v); applyTheme(accent,v) }, [accent])
-  const setLang = useCallback((l:Lang)=>_setLang(l), [])
-  const setObjectif = useCallback((n:number)=>_setObj(n), [])
+  const setAccent = useCallback((c:string) => { _setA(c); applyTheme(c, darkMode) }, [darkMode])
+  const setDarkMode = useCallback((v:boolean) => { _setD(v); applyTheme(accent, v) }, [accent])
+  const setLang = useCallback((l:Lang) => _setL(l), [])
+  const setObjectif = useCallback((n:number) => _setO(n), [])
 
-  const savePrefs = useCallback(async()=>{
+  const savePrefs = useCallback(async () => {
     if (!userId) return
     const sb = getSupabase()
     const payload = { user_id:userId, couleur_theme:accent, mode_sombre:darkMode, langue:lang, objectif_heures_mensuel:objectif }

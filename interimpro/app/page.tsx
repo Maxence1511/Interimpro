@@ -14,13 +14,12 @@ export default function LoginPage() {
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', '#e879f9')
     document.documentElement.removeAttribute('data-theme')
-    // Si déjà connecté → dashboard
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('error')) setErr('Connexion échouée. Réessayez.')
+    // Vérifier session existante
     getSupabase().auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/dashboard')
     })
-    // Afficher l'erreur si présente
-    const p = new URLSearchParams(window.location.search)
-    if (p.get('error')) setErr('Connexion échouée. Réessayez.')
   }, [])
 
   const handleGoogle = async () => {
@@ -28,10 +27,7 @@ export default function LoginPage() {
     const { error } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Implicit flow : le token revient dans le hash #access_token=...
-        // Pas de code_verifier, pas de cookie, fonctionne sur tous les datacenters
-        redirectTo: window.location.origin + '/auth/callback',
-        skipBrowserRedirect: false,
+        redirectTo: `${window.location.origin}/dashboard`,
       }
     })
     if (error) { setErr(error.message); setLoading(false) }
@@ -39,20 +35,15 @@ export default function LoginPage() {
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setErr('')
-    const sb = getSupabase()
     const fn = mode === 'in'
-      ? sb.auth.signInWithPassword({ email, password: pwd })
-      : sb.auth.signUp({ email, password: pwd })
+      ? getSupabase().auth.signInWithPassword({ email, password: pwd })
+      : getSupabase().auth.signUp({ email, password: pwd })
     const { error } = await fn
     if (error) { setErr(error.message); setLoading(false) }
     else router.replace('/dashboard')
   }
 
-  const inp: React.CSSProperties = {
-    width:'100%', padding:'10px 13px', borderRadius:9,
-    border:'1.5px solid #e9d5f9', background:'white', color:'#3b0764',
-    fontSize:14, outline:'none', boxSizing:'border-box'
-  }
+  const inp: React.CSSProperties = { width:'100%', padding:'10px 13px', borderRadius:9, border:'1.5px solid #e9d5f9', background:'white', color:'#3b0764', fontSize:14, outline:'none', boxSizing:'border-box' }
 
   return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#ede9fe 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, position:'relative', overflow:'hidden' }}>
@@ -88,11 +79,11 @@ export default function LoginPage() {
             <div><label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7c3aed', marginBottom:5 }}>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.com" required style={inp}/></div>
             <div><label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7c3aed', marginBottom:5 }}>Mot de passe</label><input type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••" required style={inp}/></div>
             <button type="submit" disabled={loading} style={{ padding:11, borderRadius:11, border:'none', background:'linear-gradient(135deg,#e87bf9,#a855f7)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 12px rgba(168,85,247,0.3)', marginTop:2 }}>
-              {loading ? '...' : mode==='in' ? 'Se connecter' : "S'inscrire"}
+              {loading?'...':mode==='in'?'Se connecter':"S'inscrire"}
             </button>
           </form>
           <button onClick={()=>setMode(mode==='in'?'up':'in')} style={{ width:'100%', marginTop:14, fontSize:13, color:'#9333ea', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>
-            {mode==='in' ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
+            {mode==='in'?"Pas encore de compte ? S'inscrire":'Déjà un compte ? Se connecter'}
           </button>
         </div>
       </div>

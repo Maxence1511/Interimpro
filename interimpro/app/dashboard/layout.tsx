@@ -176,18 +176,18 @@ export default function DashboardLayout({children}:{children:React.ReactNode}){
       <style>{'@keyframes spin{to{transform:rotate(360deg)}} @keyframes slideIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}} @keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'}</style>
       <div style={{display:'flex',minHeight:'100vh',background:'var(--bg)'}}>
         {/* SIDEBAR — toujours sombre */}
-        <aside style={{width:230,minWidth:230,background:'#0d1526',display:'flex',flexDirection:'column',position:'sticky',top:0,height:'100vh',zIndex:20,borderRight:'1px solid rgba(255,255,255,.06)'}}>
+        <aside style={{width:230,minWidth:230,background:'var(--sidebar-bg)',display:'flex',flexDirection:'column',position:'sticky',top:0,height:'100vh',zIndex:20,borderRight:'1px solid var(--sidebar-border)'}}>
           <Link href="/dashboard" style={{padding:'18px 16px 14px',display:'flex',alignItems:'center',gap:10,textDecoration:'none',borderBottom:'1px solid rgba(255,255,255,.07)'}}>
             <div style={{width:36,height:36,minWidth:36,borderRadius:10,background:`${accent}20`,border:`1px solid ${accent}40`,display:'flex',alignItems:'center',justifyContent:'center'}}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
             </div>
-            <div><div style={{fontWeight:800,fontSize:15,color:'white',letterSpacing:'-.3px'}}>InterimPro</div><div style={{fontSize:10,color:'rgba(255,255,255,.35)'}}>Missions infirmières</div></div>
+            <div><div style={{fontWeight:800,fontSize:15,color:'white',letterSpacing:'-.3px'}}>InterimPro</div><div style={{fontSize:10,color:'var(--sidebar-item-sub)'}}>Missions infirmières</div></div>
           </Link>
           <nav style={{flex:1,padding:'10px 8px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto'}}>
             {NAV.map(item=>{
               const active=isActive(item)
               return(
-                <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,textDecoration:'none',background:active?`${accent}25`:'transparent',color:active?accent:'rgba(255,255,255,.55)',fontWeight:active?600:400,fontSize:14,border:`1px solid ${active?accent+'40':'transparent'}`,transition:'all .15s'}}>
+                <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,textDecoration:'none',background:active?`${accent}25`:'transparent',color:active?accent:'var(--sidebar-text)',fontWeight:active?600:400,fontSize:14,border:`1px solid ${active?accent+'40':'transparent'}`,transition:'all .15s'}}>
                   <span style={{fontSize:16}}>{item.e}</span>{t(lang,item.key)}
                 </Link>
               )
@@ -203,7 +203,7 @@ export default function DashboardLayout({children}:{children:React.ReactNode}){
                 <span style={{display:'inline-block',fontSize:10,color:accent,background:`${accent}20`,border:`1px solid ${accent}40`,borderRadius:100,padding:'1px 7px',marginTop:2}}>{profile?.specialite||'Infirmier(e)'}</span>
               </div>
             </div>
-            <button onClick={()=>setShowSettings(true)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,border:'none',background:'transparent',color:'rgba(255,255,255,.45)',cursor:'pointer',fontSize:13,marginBottom:1,textAlign:'left'}}>⚙️ {t(lang,'common.settings')}</button>
+            <button onClick={()=>setShowSettings(true)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,border:'none',background:'transparent',color:'var(--sidebar-text)',cursor:'pointer',fontSize:13,marginBottom:1,textAlign:'left'}}>⚙️ {t(lang,'common.settings')}</button>
             <button onClick={logout} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,border:'none',background:'transparent',color:'rgba(239,68,68,.7)',cursor:'pointer',fontSize:13,textAlign:'left'}}>🚪 {t(lang,'common.logout')}</button>
           </div>
         </aside>

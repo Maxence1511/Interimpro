@@ -9,24 +9,34 @@ type Etab = { id:string; nom:string; type_etablissement:string; type?:string; ad
 
 function ActionMenu({ onView, onEdit, onArchive }: { onView:()=>void; onEdit:()=>void; onArchive:()=>void }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top:0, right:0 })
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const h=(e:MouseEvent)=>{ if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false) }
     document.addEventListener('mousedown',h); return ()=>document.removeEventListener('mousedown',h)
   }, [])
+  const handleOpen = (e:React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(!open)
+  }
   return (
-    <div ref={ref} style={{ position:'relative' }} onClick={e=>e.stopPropagation()}>
-      <button onClick={()=>setOpen(!open)} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-input)', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, padding:0, color:'var(--text-muted)', flexShrink:0 }}>
+    <div ref={ref} onClick={e=>e.stopPropagation()}>
+      <button ref={btnRef} onClick={handleOpen} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-input)', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, padding:0, color:'var(--text-muted)', flexShrink:0 }}>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
       </button>
       {open && (
-        <div style={{ position:'absolute', top:'calc(100% + 4px)', right:0, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 24px var(--shadow)', zIndex:200, minWidth:150, overflow:'hidden', animation:'popIn .15s ease' }}>
-          <button onClick={()=>{onView();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>👁 Voir les détails</button>
-          <button onClick={()=>{onEdit();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>✏️ Modifier</button>
+        <div style={{ position:'fixed', top:pos.top, right:pos.right, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px var(--shadow)', zIndex:9999, minWidth:160, overflow:'hidden', animation:'popIn .15s ease' }}>
+          <button onClick={()=>{onView();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>👁 Voir les détails</button>
+          <button onClick={()=>{onEdit();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>✏️ Modifier</button>
           <div style={{ height:1, background:'var(--border)', margin:'0 8px' }}/>
-          <button onClick={()=>{onArchive();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'#f97316', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>📦 Archiver</button>
+          <button onClick={()=>{onArchive();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'#f97316', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>📦 Archiver</button>
         </div>
       )}
     </div>

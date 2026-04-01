@@ -31,25 +31,38 @@ function fmtEur(n:number) { return n.toLocaleString('fr-FR',{style:'currency',cu
 // ===== MENU 3 POINTS =====
 function ActionMenu({ onView, onEdit, onArchive, onDelete }: { onView:()=>void; onEdit:()=>void; onArchive:()=>void; onDelete:()=>void }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top:0, right:0 })
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
   useEffect(() => {
     const h=(e:MouseEvent)=>{ if(ref.current&&!ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown',h); return ()=>document.removeEventListener('mousedown',h)
   }, [])
+
+  const handleOpen = (e:React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(!open)
+  }
+
   return (
-    <div ref={ref} style={{ position:'relative' }} onClick={e=>e.stopPropagation()}>
-      <button onClick={()=>setOpen(!open)} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-card)', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, padding:0, color:'var(--text-muted)', flexShrink:0 }}>
+    <div ref={ref} onClick={e=>e.stopPropagation()}>
+      <button ref={btnRef} onClick={handleOpen} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-card)', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, padding:0, color:'var(--text-muted)', flexShrink:0 }}>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
         <div style={{ width:3, height:3, borderRadius:'50%', background:'currentColor' }}/>
       </button>
       {open && (
-        <div style={{ position:'absolute', top:'calc(100% + 4px)', right:0, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 24px var(--shadow)', zIndex:200, minWidth:150, overflow:'hidden', animation:'popIn .15s ease' }}>
-          <button onClick={()=>{onView();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>👁 Voir les détails</button>
-          <button onClick={()=>{onEdit();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>✏️ Modifier</button>
-          <button onClick={()=>{onArchive();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'#f97316', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>📦 Archiver</button>
+        <div style={{ position:'fixed', top:pos.top, right:pos.right, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px var(--shadow)', zIndex:9999, minWidth:160, overflow:'hidden', animation:'popIn .15s ease' }}>
+          <button onClick={()=>{onView();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>👁 Voir les détails</button>
+          <button onClick={()=>{onEdit();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>✏️ Modifier</button>
+          <button onClick={()=>{onArchive();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'#f97316', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>📦 Archiver</button>
           <div style={{ height:1, background:'var(--border)', margin:'0 8px' }}/>
-          <button onClick={()=>{onDelete();setOpen(false)}} style={{ width:'100%', padding:'9px 14px', border:'none', background:'transparent', color:'#ef4444', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>🗑 Supprimer</button>
+          <button onClick={()=>{onDelete();setOpen(false)}} style={{ width:'100%', padding:'10px 14px', border:'none', background:'transparent', color:'#ef4444', cursor:'pointer', fontSize:13, textAlign:'left', display:'flex', alignItems:'center', gap:8 }}>🗑 Supprimer</button>
         </div>
       )}
     </div>
@@ -70,8 +83,8 @@ function MissionDetail({ m, etab, onClose, onEdit, onToggleDoc }: { m:Mission; e
       <div style={{ background:'var(--bg-modal)', border:'1px solid var(--border)', borderRadius:16, padding:28, width:'100%', maxWidth:480, maxHeight:'88vh', overflow:'auto', boxShadow:'0 24px 60px var(--shadow)', animation:'slideIn .2s ease' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
           <div>
+            <div style={{ fontSize:13, color:accent, fontWeight:700, marginBottom:2, letterSpacing:'.02em' }}>{etab?.nom||'—'}</div>
             <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)', marginBottom:3 }}>{m.titre}</h2>
-            <div style={{ fontSize:13, color:'var(--text-muted)' }}>{etab?.nom||'—'}</div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={onEdit} style={{ padding:'7px 14px', borderRadius:8, border:`1px solid ${accent}`, background:'var(--accent-dim)', color:accent, cursor:'pointer', fontSize:13, fontWeight:600 }}>{t(lang,'missions.modify')}</button>
@@ -348,7 +361,7 @@ export default function MissionsPage() {
         ))}
       </div>
 
-      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderTop:'none', borderRadius:'0 0 10px 10px', overflow:'hidden' }}>
+      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderTop:'none', borderRadius:'0 0 10px 10px' }}>
         {loading ? (
           <div style={{ padding:48, textAlign:'center' }}><div style={{ width:32, height:32, borderRadius:'50%', border:`3px solid ${accent}30`, borderTop:`3px solid ${accent}`, animation:'spin .8s linear infinite', margin:'0 auto' }}/></div>
         ) : filtered.length===0 ? (
@@ -362,7 +375,7 @@ export default function MissionsPage() {
             <thead>
               <tr>
                 <th style={th}>{t(lang,'missions.col_mission')}</th>
-                <th style={th}>{t(lang,'missions.col_etab')}</th>
+                <th style={{...th, display:'none'}}>{t(lang,'missions.col_etab')}</th>
                 <th style={th}>{t(lang,'missions.col_date')}</th>
                 <th style={th}>{t(lang,'missions.col_hours')}</th>
                 <th style={th}>{t(lang,'missions.col_salary')}</th>
@@ -383,10 +396,11 @@ export default function MissionsPage() {
                     onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-hover)')}
                     onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     <td style={td}>
-                      <div style={{ fontWeight:700, fontSize:14 }}>{m.titre}</div>
-                      {m.creneau_label && <div style={{ fontSize:11, color:accent, marginTop:1 }}>🕐 {m.creneau_label}</div>}
+                      <div style={{ fontWeight:800, fontSize:14, color:'var(--text)' }}>{etab?.nom||'—'}</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>{m.titre}</div>
+                      {m.creneau_label && <div style={{ fontSize:10, color:accent, marginTop:1, opacity:.8 }}>🕐 {m.creneau_label}</div>}
                     </td>
-                    <td style={{ ...td, color:'var(--text-muted)' }}>{etab?.nom||'—'}</td>
+                    <td style={{ ...td, color:'var(--text-muted)', display:'none' }}>{etab?.nom||'—'}</td>
                     <td style={td}>
                       <div style={{ fontWeight:600 }}>{fmtDate(m.date_debut)}</div>
                       <div style={{ fontSize:11, color:'var(--text-dim)', marginTop:1 }}>{m.date_debut?.split('T')[1]?.slice(0,5)||''} → {m.date_fin?.split('T')[1]?.slice(0,5)||''}</div>

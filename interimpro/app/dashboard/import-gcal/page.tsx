@@ -198,15 +198,16 @@ export default function ImportGCalPage() {
 
       // Créer le nouvel établissement si demandé
       if ((!etabId || ev.matchedEtabId==='__new__') && ev.newEtabName.trim()) {
+        const evAny = ev as any
         const { data, error } = await sb.from('etablissements').insert({
           user_id: userId,
           nom: ev.newEtabName.trim(),
-          type_etablissement: 'Établissement',
-          type: 'Établissement',
-          taux_horaire: 16.32,
+          type_etablissement: evAny.newEtabType || 'Établissement',
+          type: evAny.newEtabType || 'Établissement',
+          taux_horaire: evAny.newEtabTaux || 16.32,
           creneaux: [],
           archived: false,
-          adresse: '',
+          adresse: evAny.newEtabAdresse || '',
           telephone: '',
           email_contact: '',
           email: '',
@@ -218,7 +219,8 @@ export default function ImportGCalPage() {
         if (data) {
           etabId = data.id
           // Rafraîchir la liste des étabs localement
-          setEtabs(prev => [...prev, { id:data.id, nom:ev.newEtabName.trim(), taux_horaire:16.32, creneaux:[] }])
+          const evAny2 = ev as any
+          setEtabs(prev => [...prev, { id:data.id, nom:ev.newEtabName.trim(), taux_horaire:evAny2.newEtabTaux||16.32, creneaux:[] }])
         }
       }
 
@@ -418,7 +420,44 @@ export default function ImportGCalPage() {
                               <option value="__new__">+ Créer un établissement</option>
                             </select>
                             {ev.matchedEtabId==='__new__' && (
-                              <input value={ev.newEtabName} onChange={e2=>updateEvent(globalIdx,{newEtabName:e2.target.value})} placeholder="Nom de l'établissement" style={{ ...inp, marginTop:6 }}/>
+                              <div style={{ marginTop:8, padding:'10px 12px', background:'var(--bg-hover)', borderRadius:8, border:'1px solid var(--accent-border)', display:'flex', flexDirection:'column', gap:7 }}>
+                                <div style={{ fontSize:11, color:accent, fontWeight:700, marginBottom:2 }}>➕ Nouvel établissement</div>
+                                <input
+                                  value={ev.newEtabName}
+                                  onChange={e2=>updateEvent(globalIdx,{newEtabName:e2.target.value})}
+                                  placeholder="Nom de l'établissement *"
+                                  style={{ ...inp, fontWeight:600 }}
+                                />
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                                  <div>
+                                    <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:3 }}>Type</div>
+                                    <select
+                                      value={(ev as any).newEtabType||'EHPAD'}
+                                      onChange={e2=>updateEvent(globalIdx,{newEtabType:e2.target.value} as any)}
+                                      style={{ ...inp, fontSize:11 }}>
+                                      {['EHPAD','Clinique','CHU','CH','SSIAD','HAD','Cabinet libéral','Autre'].map(tp=><option key={tp}>{tp}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:3 }}>Taux horaire (€/h)</div>
+                                    <input
+                                      type="number" step="0.01" min="0"
+                                      value={(ev as any).newEtabTaux||16.32}
+                                      onChange={e2=>updateEvent(globalIdx,{newEtabTaux:Number(e2.target.value)} as any)}
+                                      style={{ ...inp, fontSize:11 }}
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:3 }}>Adresse (optionnel)</div>
+                                  <input
+                                    value={(ev as any).newEtabAdresse||''}
+                                    onChange={e2=>updateEvent(globalIdx,{newEtabAdresse:e2.target.value} as any)}
+                                    placeholder="Adresse..."
+                                    style={{ ...inp, fontSize:11 }}
+                                  />
+                                </div>
+                              </div>
                             )}
                           </div>
                           {ev.matchedEtabId && ev.matchedEtabId!=='__new__' && (etabs.find(e=>e.id===ev.matchedEtabId)?.creneaux||[]).length>0 ? (
